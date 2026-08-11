@@ -4,6 +4,7 @@ import { AuthRequest } from "./wrokspace.controller";
 import Item from "../models/Item";
 import Group from "../models/Group";
 import Board from "../models/Board";
+import { touchWorkspace } from "../utils/workspaceHelper";
 
 export const createItem = async (req: AuthRequest, res: Response) => {
     try {
@@ -51,6 +52,8 @@ export const createItem = async (req: AuthRequest, res: Response) => {
             createdBy: new mongoose.Types.ObjectId(req.user?.id as string)
 
         });
+
+        await touchWorkspace(board.workspace);
 
         res.status(201).json({
 
@@ -141,6 +144,8 @@ export const updateItem = async (req: Request, res: Response) => {
 
         }
 
+        await touchWorkspace(item.workspace);
+
         res.status(200).json({
 
             message: "Item updated successfully",
@@ -193,6 +198,8 @@ export const deleteItem = async (req: Request, res: Response) => {
             });
 
         }
+
+        await touchWorkspace(item.workspace);
 
         res.status(200).json({
 

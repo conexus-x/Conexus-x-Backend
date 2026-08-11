@@ -2,33 +2,22 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface IFile extends Document {
   workspace: mongoose.Types.ObjectId;
-
   uploadedBy: mongoose.Types.ObjectId;
-
   item?: mongoose.Types.ObjectId;
-
   comment?: mongoose.Types.ObjectId;
-
   name: string;
-
   originalName: string;
-
   url: string;
-
   publicId?: string;
-
   mimeType: string;
-
   size: number;
-
   type:
-    | "image"
-    | "document"
-    | "video"
-    | "other";
+  | "image"
+  | "document"
+  | "video"
+  | "other";
 
   isDeleted: boolean;
-
   createdAt: Date;
   updatedAt: Date;
 }
@@ -111,10 +100,6 @@ const FileSchema = new Schema<IFile>(
     timestamps: true,
   }
 );
-
-
-FileSchema.index({ workspace: 1 });
-FileSchema.index({ item: 1 });
 
 
 const File: Model<IFile> =

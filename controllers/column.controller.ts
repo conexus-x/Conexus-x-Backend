@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { AuthRequest } from "./wrokspace.controller";
 import Column from "../models/Column";
+import Board from "../models/Board";
+import { touchWorkspace } from "../utils/workspaceHelper";
 
 
 export const createColumn = async(req:AuthRequest,res:Response)=>{
@@ -34,6 +36,11 @@ export const createColumn = async(req:AuthRequest,res:Response)=>{
             createdBy: new mongoose.Types.ObjectId(req.user?.id as string)
 
         });
+
+        const board = await Board.findById(boardId);
+        if (board) {
+            await touchWorkspace(board.workspace);
+        }
 
 
         res.status(201).json({
@@ -128,6 +135,11 @@ export const updateColumn = async(req:Request,res:Response)=>{
 
         }
 
+        const board = await Board.findById(column.board);
+        if (board) {
+            await touchWorkspace(board.workspace);
+        }
+
 
         res.status(200).json({
 
@@ -169,6 +181,11 @@ export const deleteColumn = async(req:Request,res:Response)=>{
 
             });
 
+        }
+
+        const board = await Board.findById(column.board);
+        if (board) {
+            await touchWorkspace(board.workspace);
         }
 
 

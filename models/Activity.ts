@@ -106,7 +106,6 @@ const ActivitySchema = new Schema<IActivity>(
 
 // Indexes
 ActivitySchema.index({ workspace: 1, createdAt: -1 });
-ActivitySchema.index({ user: 1 });
 ActivitySchema.index({ board: 1 });
 ActivitySchema.index({ item: 1 });
 

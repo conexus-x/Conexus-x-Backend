@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { AuthRequest } from "./wrokspace.controller";
 import Group from "../models/Group";
+import Board from "../models/Board";
+import { touchWorkspace } from "../utils/workspaceHelper";
 
 
 export const createGroup = async(req:AuthRequest,res:Response)=>{
@@ -22,6 +24,11 @@ export const createGroup = async(req:AuthRequest,res:Response)=>{
             createdBy: new mongoose.Types.ObjectId(req.user?.id as string)
 
         });
+
+        const board = await Board.findById(boardId);
+        if (board) {
+            await touchWorkspace(board.workspace);
+        }
 
 
         res.status(201).json({
@@ -122,6 +129,11 @@ export const updateGroup = async(req:Request,res:Response)=>{
 
         }
 
+        const board = await Board.findById(group.board);
+        if (board) {
+            await touchWorkspace(board.workspace);
+        }
+
 
         res.json({
 
@@ -165,6 +177,11 @@ export const deleteGroup = async(req:Request,res:Response)=>{
 
             });
 
+        }
+
+        const board = await Board.findById(group.board);
+        if (board) {
+            await touchWorkspace(board.workspace);
         }
 
 

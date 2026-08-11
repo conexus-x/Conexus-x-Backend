@@ -10,6 +10,7 @@ import Activity from "../models/Activity";
 import Comment from "../models/Comment";
 import File from "../models/File";
 import Notification from "../models/Notification";
+import { touchWorkspace } from "../utils/workspaceHelper";
 
 // Extend Request type to include user information from auth middleware
 export interface AuthRequest extends Request {
@@ -75,9 +76,35 @@ export const getWorkspaces = async (req: AuthRequest, res: Response) => {
             });
         }
 
-        const workspaces = await WorkspaceMember.find({
+        const memberships = await WorkspaceMember.find({
             user: userId
         }).populate("workspace");
+
+        // Collect workspace IDs and count boards for each
+        const workspaceIds = memberships
+            .map((m: any) => m.workspace?._id)
+            .filter(Boolean);
+
+        const boardCounts = await Board.aggregate([
+            { $match: { workspace: { $in: workspaceIds } } },
+            { $group: { _id: "$workspace", count: { $sum: 1 } } }
+        ]);
+
+        const countMap: Record<string, number> = {};
+        for (const entry of boardCounts) {
+            countMap[entry._id.toString()] = entry.count;
+        }
+
+        // Attach totalBoards to each membership's workspace
+        const workspaces = memberships.map((m: any) => {
+            const ws = m.workspace?.toObject ? m.workspace.toObject() : m.workspace;
+            return {
+                ...m.toObject(),
+                workspace: ws
+                    ? { ...ws, totalBoards: countMap[ws._id?.toString()] || 0 }
+                    : ws,
+            };
+        });
 
         return res.json({
             workspaces
@@ -122,6 +149,10 @@ export const updateWorkspace = async (req: Request, res: Response) => {
                 new: true
             }
         );
+
+        if (workspace) {
+            await touchWorkspace(workspace._id);
+        }
 
         return res.json({
             message: "Workspace updated",

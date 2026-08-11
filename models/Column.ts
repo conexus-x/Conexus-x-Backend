@@ -6,18 +6,18 @@ export interface IColumn extends Document {
   name: string;
 
   type:
-    | "text"
-    | "number"
-    | "status"
-    | "date"
-    | "person"
-    | "email"
-    | "phone"
-    | "checkbox"
-    | "dropdown"
-    | "link"
-    | "file"
-    | "rating";
+  | "text"
+  | "number"
+  | "status"
+  | "date"
+  | "person"
+  | "email"
+  | "phone"
+  | "checkbox"
+  | "dropdown"
+  | "link"
+  | "file"
+  | "rating";
 
   options?: string[];
 
@@ -105,7 +105,6 @@ const ColumnSchema = new Schema<IColumn>(
   }
 );
 
-ColumnSchema.index({ board: 1 });
 ColumnSchema.index({ board: 1, position: 1 });
 ColumnSchema.index({ createdBy: 1 });
 

@@ -4,12 +4,9 @@ export interface IWorkspace extends Document {
     name: string;
     slug: string;
     owner: mongoose.Types.ObjectId;
-
     logo?: string;
     description?: string;
-
     isActive: boolean;
-
     createdAt: Date;
     updatedAt: Date;
 }
@@ -22,7 +19,6 @@ const WorkspaceSchema = new Schema<IWorkspace>(
             trim: true,
             maxlength: 100,
         },
-
         slug: {
             type: String,
             required: true,
@@ -30,24 +26,20 @@ const WorkspaceSchema = new Schema<IWorkspace>(
             lowercase: true,
             trim: true,
         },
-
         owner: {
             type: Schema.Types.ObjectId,
             ref: "User",
             required: true,
             index: true,
         },
-
         logo: {
             type: String,
             default: "",
         },
-
         description: {
             type: String,
             default: "",
         },
-
         isActive: {
             type: Boolean,
             default: true,

@@ -72,11 +72,6 @@ const ItemValueSchema = new Schema<IItemValue>(
   }
 );
 
-ItemValueSchema.index({ workspace: 1 });
-ItemValueSchema.index({ board: 1 });
-ItemValueSchema.index({ group: 1 });
-ItemValueSchema.index({ item: 1 });
-ItemValueSchema.index({ column: 1 });
 ItemValueSchema.index({ createdBy: 1 });
 ItemValueSchema.index({ item: 1, column: 1 }, { unique: true });
 

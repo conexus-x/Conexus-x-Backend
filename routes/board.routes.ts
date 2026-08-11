@@ -2,7 +2,8 @@ import { Router } from "express";
 import { protect } from "../middleware/auth.middleware";
 import {
     createBoard,
-    getWorkspaceBoards
+    getWorkspaceBoards,
+    deleteBoard
 } from "../controllers/board.controller";
 
 
@@ -25,5 +26,11 @@ router.get(
 );
 
 
+
+router.delete(
+    "/:boardId",
+    protect,
+    deleteBoard
+);
 
 export default router;

@@ -2,21 +2,13 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface IItem extends Document {
   workspace: mongoose.Types.ObjectId;
-
   board: mongoose.Types.ObjectId;
-
   group: mongoose.Types.ObjectId;
-
   name: string;
-
   position: number;
-
   createdBy: mongoose.Types.ObjectId;
-
   isCompleted: boolean;
-
   isArchived: boolean;
-
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,9 +69,7 @@ const ItemSchema = new Schema<IItem>(
   }
 );
 
-ItemSchema.index({ workspace: 1 });
-ItemSchema.index({ board: 1 });
-ItemSchema.index({ group: 1 });
+
 ItemSchema.index({ createdBy: 1 });
 ItemSchema.index({ board: 1, group: 1, position: 1 });
 

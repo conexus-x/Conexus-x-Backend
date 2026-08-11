@@ -80,7 +80,6 @@ const CommentSchema = new Schema<IComment>(
 
 // Indexes
 CommentSchema.index({ item: 1, createdAt: -1 });
-CommentSchema.index({ user: 1 });
 
 const Comment: Model<IComment> =
   mongoose.models.Comment ||

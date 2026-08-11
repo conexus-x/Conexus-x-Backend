@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { AuthRequest } from "./wrokspace.controller";
 import ItemValue from "../models/ItemValue";
+import { touchWorkspace } from "../utils/workspaceHelper";
 
 export const createItemValue = async (req: AuthRequest, res: Response) => {
     try {
@@ -43,6 +44,8 @@ export const createItemValue = async (req: AuthRequest, res: Response) => {
             createdBy: new mongoose.Types.ObjectId(req.user?.id as string)
 
         });
+
+        await touchWorkspace(workspace);
 
         res.status(201).json({
 
@@ -127,6 +130,8 @@ export const updateItemValue = async (req: Request, res: Response) => {
 
         }
 
+        await touchWorkspace(itemValue.workspace);
+
         res.status(200).json({
 
             message: "Value updated successfully",
@@ -169,6 +174,8 @@ export const deleteItemValue = async (req: Request, res: Response) => {
             });
 
         }
+
+        await touchWorkspace(itemValue.workspace);
 
         res.status(200).json({
 

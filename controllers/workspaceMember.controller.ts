@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import WorkspaceMember from "../models/WorkspaceMember";
 import User from "../models/User";
-
+import { touchWorkspace } from "../utils/workspaceHelper";
 
 interface AuthRequest extends Request {
     user?: {
@@ -96,8 +96,6 @@ export const addWorkspaceMember = async (
 
         }
 
-
-
         const exists = await WorkspaceMember.findOne({
 
             workspace: workspaceId,
@@ -130,7 +128,7 @@ export const addWorkspaceMember = async (
 
         });
 
-
+        await touchWorkspace(workspaceId as string);
 
         return res.status(201).json({
 
@@ -179,7 +177,7 @@ export const removeWorkspaceMember = async (
 
         });
 
-
+        await touchWorkspace(workspaceId as string);
 
         return res.json({
 
