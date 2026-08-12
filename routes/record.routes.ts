@@ -3,51 +3,51 @@ import { protect } from "../middleware/auth.middleware";
 
 import {
 
-    createItem,
+    createRecord,
 
-    getGroupItems,
+    getCollectionRecords,
 
-    updateItem,
+    updateRecord,
 
-    deleteItem
+    deleteRecord
 
-} from "../controllers/item.controller"
+} from "../controllers/record.controller";
 
 const router = Router();
 
 router.post(
 
-    "/:groupId",
+    "/:collectionId",
     protect,
 
-    createItem
+    createRecord
 
 );
 
 router.get(
 
-    "/:groupId",
+    "/:collectionId",
     protect,
 
-    getGroupItems
+    getCollectionRecords
 
 );
 
 router.put(
 
-    "/:itemId",
+    "/:recordId",
     protect,
 
-    updateItem
+    updateRecord
 
 );
 
 router.delete(
 
-    "/:itemId",
+    "/:recordId",
     protect,
 
-    deleteItem
+    deleteRecord
 
 );
 

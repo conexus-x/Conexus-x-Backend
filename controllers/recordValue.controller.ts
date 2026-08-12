@@ -1,23 +1,23 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { AuthRequest } from "./wrokspace.controller";
-import ItemValue from "../models/ItemValue";
+import RecordValue from "../models/RecordValue";
 import { touchWorkspace } from "../utils/workspaceHelper";
 
-export const createItemValue = async (req: AuthRequest, res: Response) => {
+export const createRecordValue = async (req: AuthRequest, res: Response) => {
     try {
 
         const {
             workspace,
-            board,
-            group,
-            item,
+            module: moduleId,
+            collectionName,
+            record,
             column,
             value
         } = req.body;
 
-        const exists = await ItemValue.findOne({
-            item: new mongoose.Types.ObjectId(item as string),
+        const exists = await RecordValue.findOne({
+            record: new mongoose.Types.ObjectId(record as string),
             column: new mongoose.Types.ObjectId(column as string)
         });
 
@@ -27,15 +27,15 @@ export const createItemValue = async (req: AuthRequest, res: Response) => {
             });
         }
 
-        const itemValue = await ItemValue.create({
+        const recordValue = await RecordValue.create({
 
             workspace: new mongoose.Types.ObjectId(workspace as string),
 
-            board: new mongoose.Types.ObjectId(board as string),
+            module: new mongoose.Types.ObjectId(moduleId as string),
 
-            group: new mongoose.Types.ObjectId(group as string),
+            collectionName: new mongoose.Types.ObjectId(collectionName as string),
 
-            item: new mongoose.Types.ObjectId(item as string),
+            record: new mongoose.Types.ObjectId(record as string),
 
             column: new mongoose.Types.ObjectId(column as string),
 
@@ -51,7 +51,7 @@ export const createItemValue = async (req: AuthRequest, res: Response) => {
 
             message: "Value created successfully",
 
-            itemValue
+            recordValue
 
         });
 
@@ -67,15 +67,15 @@ export const createItemValue = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const getItemValues = async (req: Request, res: Response) => {
+export const getRecordValues = async (req: Request, res: Response) => {
 
     try {
 
-        const { itemId } = req.params;
+        const { recordId } = req.params;
 
-        const values = await ItemValue.find({
+        const values = await RecordValue.find({
 
-            item: new mongoose.Types.ObjectId(itemId as string)
+            record: new mongoose.Types.ObjectId(recordId as string)
 
         }).populate("column");
 
@@ -98,17 +98,17 @@ export const getItemValues = async (req: Request, res: Response) => {
 
 };
 
-export const updateItemValue = async (req: Request, res: Response) => {
+export const updateRecordValue = async (req: Request, res: Response) => {
 
     try {
 
-        const { itemValueId } = req.params;
+        const { recordValueId } = req.params;
 
         const { value } = req.body;
 
-        const itemValue = await ItemValue.findByIdAndUpdate(
+        const recordValue = await RecordValue.findByIdAndUpdate(
 
-            itemValueId,
+            recordValueId,
 
             {
                 value
@@ -120,23 +120,23 @@ export const updateItemValue = async (req: Request, res: Response) => {
 
         );
 
-        if (!itemValue) {
+        if (!recordValue) {
 
             return res.status(404).json({
 
-                message: "Item value not found"
+                message: "Record value not found"
 
             });
 
         }
 
-        await touchWorkspace(itemValue.workspace);
+        await touchWorkspace(recordValue.workspace);
 
         res.status(200).json({
 
             message: "Value updated successfully",
 
-            itemValue
+            recordValue
 
         });
 
@@ -153,29 +153,29 @@ export const updateItemValue = async (req: Request, res: Response) => {
 
 };
 
-export const deleteItemValue = async (req: Request, res: Response) => {
+export const deleteRecordValue = async (req: Request, res: Response) => {
 
     try {
 
-        const { itemValueId } = req.params;
+        const { recordValueId } = req.params;
 
-        const itemValue = await ItemValue.findByIdAndDelete(
+        const recordValue = await RecordValue.findByIdAndDelete(
 
-            itemValueId
+            recordValueId
 
         );
 
-        if (!itemValue) {
+        if (!recordValue) {
 
             return res.status(404).json({
 
-                message: "Item value not found"
+                message: "Record value not found"
 
             });
 
         }
 
-        await touchWorkspace(itemValue.workspace);
+        await touchWorkspace(recordValue.workspace);
 
         res.status(200).json({
 

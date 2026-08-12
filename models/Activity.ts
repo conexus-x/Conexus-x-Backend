@@ -3,9 +3,9 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 export interface IActivity extends Document {
   workspace: mongoose.Types.ObjectId;
 
-  board?: mongoose.Types.ObjectId;
+  module?: mongoose.Types.ObjectId;
 
-  item?: mongoose.Types.ObjectId;
+  record?: mongoose.Types.ObjectId;
 
   user: mongoose.Types.ObjectId;
 
@@ -14,14 +14,14 @@ export interface IActivity extends Document {
     | "workspace_updated"
     | "member_invited"
     | "member_removed"
-    | "board_created"
-    | "board_updated"
-    | "board_deleted"
-    | "group_created"
-    | "group_updated"
-    | "item_created"
-    | "item_updated"
-    | "item_deleted"
+    | "module_created"
+    | "module_updated"
+    | "module_deleted"
+    | "collection_created"
+    | "collection_updated"
+    | "record_created"
+    | "record_updated"
+    | "record_deleted"
     | "column_created"
     | "column_updated"
     | "comment_added"
@@ -46,14 +46,14 @@ const ActivitySchema = new Schema<IActivity>(
       index: true,
     },
 
-    board: {
+    module: {
       type: Schema.Types.ObjectId,
-      ref: "Board",
+      ref: "Module",
     },
 
-    item: {
+    record: {
       type: Schema.Types.ObjectId,
-      ref: "Item",
+      ref: "Record",
     },
 
     user: {
@@ -70,14 +70,14 @@ const ActivitySchema = new Schema<IActivity>(
         "workspace_updated",
         "member_invited",
         "member_removed",
-        "board_created",
-        "board_updated",
-        "board_deleted",
-        "group_created",
-        "group_updated",
-        "item_created",
-        "item_updated",
-        "item_deleted",
+        "module_created",
+        "module_updated",
+        "module_deleted",
+        "collection_created",
+        "collection_updated",
+        "record_created",
+        "record_updated",
+        "record_deleted",
         "column_created",
         "column_updated",
         "comment_added",
@@ -106,8 +106,8 @@ const ActivitySchema = new Schema<IActivity>(
 
 // Indexes
 ActivitySchema.index({ workspace: 1, createdAt: -1 });
-ActivitySchema.index({ board: 1 });
-ActivitySchema.index({ item: 1 });
+ActivitySchema.index({ module: 1 });
+ActivitySchema.index({ record: 1 });
 
 const Activity: Model<IActivity> =
   mongoose.models.Activity ||

@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export interface IBoard extends Document {
+export interface IModule extends Document {
   workspace: mongoose.Types.ObjectId;
 
   name: string;
@@ -14,7 +14,7 @@ export interface IBoard extends Document {
   updatedAt: Date;
 }
 
-const BoardSchema = new Schema<IBoard>(
+const ModuleSchema = new Schema<IModule>(
   {
     workspace: {
       type: Schema.Types.ObjectId,
@@ -62,10 +62,10 @@ const BoardSchema = new Schema<IBoard>(
 );
 
 // Indexes
-BoardSchema.index({ createdBy: 1 });
+ModuleSchema.index({ createdBy: 1 });
 
-const Board: Model<IBoard> =
-  mongoose.models.Board ||
-  mongoose.model<IBoard>("Board", BoardSchema);
+const Module: Model<IModule> =
+  mongoose.models.Module ||
+  mongoose.model<IModule>("Module", ModuleSchema);
 
-export default Board;
+export default Module;

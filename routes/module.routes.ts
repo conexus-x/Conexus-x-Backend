@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { protect } from "../middleware/auth.middleware";
 import {
-    createBoard,
-    getWorkspaceBoards,
-    deleteBoard
-} from "../controllers/board.controller";
+    createModule,
+    getWorkspaceModules,
+    deleteModule
+} from "../controllers/module.controller";
 
 
 const router = Router();
@@ -14,7 +14,7 @@ const router = Router();
 router.post(
     "/:workspaceId",
     protect,
-    createBoard
+    createModule
 );
 
 
@@ -22,15 +22,15 @@ router.post(
 router.get(
     "/:workspaceId",
     protect,
-    getWorkspaceBoards
+    getWorkspaceModules
 );
 
 
 
 router.delete(
-    "/:boardId",
+    "/:moduleId",
     protect,
-    deleteBoard
+    deleteModule
 );
 
 export default router;

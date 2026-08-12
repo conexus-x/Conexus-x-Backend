@@ -1,9 +1,9 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export interface IItem extends Document {
+export interface IRecord extends Document {
   workspace: mongoose.Types.ObjectId;
-  board: mongoose.Types.ObjectId;
-  group: mongoose.Types.ObjectId;
+  module: mongoose.Types.ObjectId;
+  collectionName: mongoose.Types.ObjectId;
   name: string;
   position: number;
   createdBy: mongoose.Types.ObjectId;
@@ -13,7 +13,7 @@ export interface IItem extends Document {
   updatedAt: Date;
 }
 
-const ItemSchema = new Schema<IItem>(
+const RecordSchema = new Schema<IRecord>(
   {
     workspace: {
       type: Schema.Types.ObjectId,
@@ -22,16 +22,16 @@ const ItemSchema = new Schema<IItem>(
       index: true,
     },
 
-    board: {
+    module: {
       type: Schema.Types.ObjectId,
-      ref: "Board",
+      ref: "Module",
       required: true,
       index: true,
     },
 
-    group: {
+    collectionName: {
       type: Schema.Types.ObjectId,
-      ref: "Group",
+      ref: "Collection",
       required: true,
       index: true,
     },
@@ -70,11 +70,11 @@ const ItemSchema = new Schema<IItem>(
 );
 
 
-ItemSchema.index({ createdBy: 1 });
-ItemSchema.index({ board: 1, group: 1, position: 1 });
+RecordSchema.index({ createdBy: 1 });
+RecordSchema.index({ module: 1, collectionName: 1, position: 1 });
 
-const Item: Model<IItem> =
-  mongoose.models.Item ||
-  mongoose.model<IItem>("Item", ItemSchema);
+const Record: Model<IRecord> =
+  mongoose.models.Record ||
+  mongoose.model<IRecord>("Record", RecordSchema);
 
-export default Item;
+export default Record;

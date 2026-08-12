@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { protect } from "../middleware/auth.middleware";
 import {
-    createColumn,
-    getModuleColumns,
-    updateColumn,
-    deleteColumn
-} from "../controllers/column.controller";
+    createCollection,
+    getModuleCollections,
+    updateCollection,
+    deleteCollection
+} from "../controllers/collection.controller";
+
 
 const router=Router();
 
@@ -13,28 +14,28 @@ const router=Router();
 router.post(
     "/:moduleId",
     protect,
-    createColumn
+    createCollection
 );
 
 
 router.get(
     "/:moduleId",
     protect,
-    getModuleColumns
+    getModuleCollections
 );
 
 
 router.put(
-    "/:columnId",
+    "/:collectionId",
     protect,
-    updateColumn
+    updateCollection
 );
 
 
 router.delete(
-    "/:columnId",
+    "/:collectionId",
     protect,
-    deleteColumn
+    deleteCollection
 );
 
 

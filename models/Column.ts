@@ -1,7 +1,7 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface IColumn extends Document {
-  board: mongoose.Types.ObjectId;
+  module: mongoose.Types.ObjectId;
 
   name: string;
 
@@ -37,9 +37,9 @@ export interface IColumn extends Document {
 
 const ColumnSchema = new Schema<IColumn>(
   {
-    board: {
+    module: {
       type: Schema.Types.ObjectId,
-      ref: "Board",
+      ref: "Module",
       required: true,
       index: true,
     },
@@ -105,7 +105,7 @@ const ColumnSchema = new Schema<IColumn>(
   }
 );
 
-ColumnSchema.index({ board: 1, position: 1 });
+ColumnSchema.index({ module: 1, position: 1 });
 ColumnSchema.index({ createdBy: 1 });
 
 const Column: Model<IColumn> =

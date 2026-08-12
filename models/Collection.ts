@@ -1,8 +1,8 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export interface IGroup extends Document {
+export interface ICollection extends Document {
 
-    board: mongoose.Types.ObjectId;
+    module: mongoose.Types.ObjectId;
     name: string;
     color?: string;
     position: number;
@@ -11,11 +11,11 @@ export interface IGroup extends Document {
     updatedAt: Date;
 
 }
-const GroupSchema = new Schema<IGroup>(
+const CollectionSchema = new Schema<ICollection>(
     {
-        board: {
+        module: {
             type: Schema.Types.ObjectId,
-            ref: "Board",
+            ref: "Module",
             required: true,
             index: true,
         },
@@ -45,10 +45,10 @@ const GroupSchema = new Schema<IGroup>(
 );
 
 
-GroupSchema.index({ createdBy: 1 });
+CollectionSchema.index({ createdBy: 1 });
 
-const Group: Model<IGroup> = mongoose.models.Group || mongoose.model<IGroup>(
-    "Group",
-    GroupSchema
+const Collection: Model<ICollection> = mongoose.models.Collection || mongoose.model<ICollection>(
+    "Collection",
+    CollectionSchema
 );
-export default Group;
+export default Collection;

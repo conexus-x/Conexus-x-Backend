@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import { AuthRequest } from "./wrokspace.controller";
 import { Request, Response } from "express";
-import Board from "../models/Board";
+import Module from "../models/Module";
 import { touchWorkspace } from "../utils/workspaceHelper";
 
 
-export const createBoard = async (
+export const createModule = async (
     req: AuthRequest,
     res: Response
 ) => {
@@ -15,7 +15,7 @@ export const createBoard = async (
         const { workspaceId } = req.params;
         const { name, description, icon, color, visibility } = req.body;
 
-        const board = await Board.create({
+        const moduleItem = await Module.create({
             workspace: new mongoose.Types.ObjectId(workspaceId as string),
             name,
             description,
@@ -28,8 +28,8 @@ export const createBoard = async (
 
         await touchWorkspace(workspaceId as string);
         res.status(201).json({
-            message: "Board created successfully",
-            board
+            message: "Module created successfully",
+            module: moduleItem
         });
     }
     catch (error: any) {
@@ -42,14 +42,14 @@ export const createBoard = async (
 
 
 
-export const getWorkspaceBoards = async (req: Request, res: Response) => {
+export const getWorkspaceModules = async (req: Request, res: Response) => {
     try {
         const { workspaceId } = req.params;
-        const boards = await Board.find({
+        const modules = await Module.find({
             workspace: new mongoose.Types.ObjectId(workspaceId as string),
             isArchived: false
         })
-            .populate("createdBy", "name email"); res.json({ boards });
+            .populate("createdBy", "name email"); res.json({ modules });
     }
     catch (error: any) {
 
@@ -58,17 +58,18 @@ export const getWorkspaceBoards = async (req: Request, res: Response) => {
 };
 
 
-export const deleteBoard = async (req: AuthRequest, res: Response) => {
+export const deleteModule = async (req: AuthRequest, res: Response) => {
     try {
-        const { boardId } = req.params;
-        const board = await Board.findById(boardId);
-        if (!board) {
-            return res.status(404).json({ message: "Board not found" });
+        const { moduleId } = req.params;
+        const moduleItem = await Module.findById(moduleId);
+        if (!moduleItem) {
+            return res.status(404).json({ message: "Module not found" });
         }
-        await Board.deleteOne({ _id: boardId });
-        await touchWorkspace(board.workspace);
-        res.json({ message: "Board deleted successfully" });
+        await Module.deleteOne({ _id: moduleId });
+        await touchWorkspace(moduleItem.workspace);
+        res.json({ message: "Module deleted successfully" });
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }
 };
+

@@ -2,10 +2,10 @@ import { Request, Response } from "express";
 import Workspace from "../models/Workspace";
 import WorkspaceMember from "../models/WorkspaceMember";
 import mongoose from "mongoose";
-import Board from "../models/Board";
+import Module from "../models/Module";
 import Column from "../models/Column";
-import Item from "../models/Item";
-import Group from "../models/Group";
+import Record from "../models/Record";
+import Collection from "../models/Collection";
 import Activity from "../models/Activity";
 import Comment from "../models/Comment";
 import File from "../models/File";
@@ -80,28 +80,28 @@ export const getWorkspaces = async (req: AuthRequest, res: Response) => {
             user: userId
         }).populate("workspace");
 
-        // Collect workspace IDs and count boards for each
+        // Collect workspace IDs and count modules for each
         const workspaceIds = memberships
             .map((m: any) => m.workspace?._id)
             .filter(Boolean);
 
-        const boardCounts = await Board.aggregate([
+        const moduleCounts = await Module.aggregate([
             { $match: { workspace: { $in: workspaceIds } } },
             { $group: { _id: "$workspace", count: { $sum: 1 } } }
         ]);
 
         const countMap: Record<string, number> = {};
-        for (const entry of boardCounts) {
+        for (const entry of moduleCounts) {
             countMap[entry._id.toString()] = entry.count;
         }
 
-        // Attach totalBoards to each membership's workspace
+        // Attach totalModules to each membership's workspace
         const workspaces = memberships.map((m: any) => {
             const ws = m.workspace?.toObject ? m.workspace.toObject() : m.workspace;
             return {
                 ...m.toObject(),
                 workspace: ws
-                    ? { ...ws, totalBoards: countMap[ws._id?.toString()] || 0 }
+                    ? { ...ws, totalModules: countMap[ws._id?.toString()] || 0 }
                     : ws,
             };
         });
@@ -174,21 +174,21 @@ export const deleteWorkspace = async (req: Request, res: Response) => {
             session.startTransaction();
             try {
                 // Delete related data
-                // Boards belonging to workspace
-                const boards = await Board.find({ workspace: workspaceId }).session(session);
-                const boardIds = boards.map(b => b._id);
+                // Modules belonging to workspace
+                const modules = await Module.find({ workspace: workspaceId }).session(session);
+                const moduleIds = modules.map(b => b._id);
 
-                // Delete items, groups, columns, activities, comments, files, notifications
-                await Item.deleteMany({ workspace: workspaceId }).session(session);
-                await Group.deleteMany({ board: { $in: boardIds } }).session(session);
-                await Column.deleteMany({ board: { $in: boardIds } }).session(session);
+                // Delete records, collections, columns, activities, comments, files, notifications
+                await Record.deleteMany({ workspace: workspaceId }).session(session);
+                await Collection.deleteMany({ module: { $in: moduleIds } }).session(session);
+                await Column.deleteMany({ module: { $in: moduleIds } }).session(session);
                 await Activity.deleteMany({ workspace: workspaceId }).session(session);
                 await Comment.deleteMany({ workspace: workspaceId }).session(session);
                 await File.deleteMany({ workspace: workspaceId }).session(session);
                 await Notification.deleteMany({ workspace: workspaceId }).session(session);
 
-                // Delete boards
-                await Board.deleteMany({ workspace: workspaceId }).session(session);
+                // Delete modules
+                await Module.deleteMany({ workspace: workspaceId }).session(session);
 
                 // Delete workspace members
                 await WorkspaceMember.deleteMany({ workspace: workspaceId }).session(session);

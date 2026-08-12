@@ -1,13 +1,13 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export interface IItemValue extends Document {
+export interface IRecordValue extends Document {
   workspace: mongoose.Types.ObjectId;
 
-  board: mongoose.Types.ObjectId;
+  module: mongoose.Types.ObjectId;
 
-  group: mongoose.Types.ObjectId;
+  collectionName: mongoose.Types.ObjectId;
 
-  item: mongoose.Types.ObjectId;
+  record: mongoose.Types.ObjectId;
 
   column: mongoose.Types.ObjectId;
 
@@ -19,7 +19,7 @@ export interface IItemValue extends Document {
   updatedAt: Date;
 }
 
-const ItemValueSchema = new Schema<IItemValue>(
+const RecordValueSchema = new Schema<IRecordValue>(
   {
     workspace: {
       type: Schema.Types.ObjectId,
@@ -28,23 +28,23 @@ const ItemValueSchema = new Schema<IItemValue>(
       index: true,
     },
 
-    board: {
+    module: {
       type: Schema.Types.ObjectId,
-      ref: "Board",
+      ref: "Module",
       required: true,
       index: true,
     },
 
-    group: {
+    collectionName: {
       type: Schema.Types.ObjectId,
-      ref: "Group",
+      ref: "Collection",
       required: true,
       index: true,
     },
 
-    item: {
+    record: {
       type: Schema.Types.ObjectId,
-      ref: "Item",
+      ref: "Record",
       required: true,
       index: true,
     },
@@ -72,11 +72,11 @@ const ItemValueSchema = new Schema<IItemValue>(
   }
 );
 
-ItemValueSchema.index({ createdBy: 1 });
-ItemValueSchema.index({ item: 1, column: 1 }, { unique: true });
+RecordValueSchema.index({ createdBy: 1 });
+RecordValueSchema.index({ record: 1, column: 1 }, { unique: true });
 
-const ItemValue: Model<IItemValue> =
-  mongoose.models.ItemValue ||
-  mongoose.model<IItemValue>("ItemValue", ItemValueSchema);
+const RecordValue: Model<IRecordValue> =
+  mongoose.models.RecordValue ||
+  mongoose.model<IRecordValue>("RecordValue", RecordValueSchema);
 
-export default ItemValue;
+export default RecordValue;

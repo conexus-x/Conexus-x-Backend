@@ -1,38 +1,26 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { AuthRequest } from "./wrokspace.controller";
-import Column from "../models/Column";
+import Collection from "../models/Collection";
 import Module from "../models/Module";
 import { touchWorkspace } from "../utils/workspaceHelper";
 
 
-export const createColumn = async(req:AuthRequest,res:Response)=>{
+export const createCollection = async(req:AuthRequest,res:Response)=>{
 
     try{
 
         const {moduleId}=req.params;
 
-        const {
-            name,
-            type,
-            options,
-            width,
-            position,
-            isRequired,
-            isHidden
-        }=req.body;
+        const {name,color,position}=req.body;
 
 
-        const column=await Column.create({
+        const collection=await Collection.create({
 
             module: new mongoose.Types.ObjectId(moduleId as string),
             name,
-            type,
-            options,
-            width,
-            position,
-            isRequired,
-            isHidden,
+            color,
+            position:position || 0,
             createdBy: new mongoose.Types.ObjectId(req.user?.id as string)
 
         });
@@ -45,10 +33,11 @@ export const createColumn = async(req:AuthRequest,res:Response)=>{
 
         res.status(201).json({
 
-            message:"Column created successfully",
-            column
+            message:"Collection created successfully",
+            collection
 
         });
+
 
     }
     catch(error:any){
@@ -65,30 +54,34 @@ export const createColumn = async(req:AuthRequest,res:Response)=>{
 
 
 
-export const getModuleColumns = async(req:Request,res:Response)=>{
+
+export const getModuleCollections = async(req:Request,res:Response)=>{
 
     try{
 
         const {moduleId}=req.params;
 
 
-        const columns=await Column.find({
+        const collections=await Collection.find({
 
             module: new mongoose.Types.ObjectId(moduleId as string)
 
         })
         .sort({
-
             position:1
+        })
+        .populate(
+            "createdBy",
+            "firstName lastName email"
+        );
+
+
+        res.json({
+
+            collections
 
         });
 
-
-        res.status(200).json({
-
-            columns
-
-        });
 
     }
     catch(error:any){
@@ -105,16 +98,17 @@ export const getModuleColumns = async(req:Request,res:Response)=>{
 
 
 
-export const updateColumn = async(req:Request,res:Response)=>{
+
+export const updateCollection = async(req:Request,res:Response)=>{
 
     try{
 
-        const {columnId}=req.params;
+        const {collectionId}=req.params;
 
 
-        const column=await Column.findByIdAndUpdate(
+        const collection=await Collection.findByIdAndUpdate(
 
-            columnId,
+            collectionId,
 
             req.body,
 
@@ -125,28 +119,29 @@ export const updateColumn = async(req:Request,res:Response)=>{
         );
 
 
-        if(!column){
+        if(!collection){
 
             return res.status(404).json({
 
-                message:"Column not found"
+                message:"Collection not found"
 
             });
 
         }
 
-        const moduleItem = await Module.findById(column.module);
+        const moduleItem = await Module.findById(collection.module);
         if (moduleItem) {
             await touchWorkspace(moduleItem.workspace);
         }
 
 
-        res.status(200).json({
+        res.json({
 
-            message:"Column updated successfully",
-            column
+            message:"Collection updated successfully",
+            collection
 
         });
+
 
     }
     catch(error:any){
@@ -163,37 +158,39 @@ export const updateColumn = async(req:Request,res:Response)=>{
 
 
 
-export const deleteColumn = async(req:Request,res:Response)=>{
+
+export const deleteCollection = async(req:Request,res:Response)=>{
 
     try{
 
-        const {columnId}=req.params;
+        const {collectionId}=req.params;
 
 
-        const column=await Column.findByIdAndDelete(columnId);
+        const collection=await Collection.findByIdAndDelete(collectionId);
 
 
-        if(!column){
+        if(!collection){
 
             return res.status(404).json({
 
-                message:"Column not found"
+                message:"Collection not found"
 
             });
 
         }
 
-        const moduleItem = await Module.findById(column.module);
+        const moduleItem = await Module.findById(collection.module);
         if (moduleItem) {
             await touchWorkspace(moduleItem.workspace);
         }
 
 
-        res.status(200).json({
+        res.json({
 
-            message:"Column deleted successfully"
+            message:"Collection deleted successfully"
 
         });
+
 
     }
     catch(error:any){

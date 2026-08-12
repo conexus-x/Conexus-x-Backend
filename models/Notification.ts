@@ -5,9 +5,9 @@ export interface INotification extends Document {
 
   workspace?: mongoose.Types.ObjectId;
 
-  board?: mongoose.Types.ObjectId;
+  module?: mongoose.Types.ObjectId;
 
-  item?: mongoose.Types.ObjectId;
+  record?: mongoose.Types.ObjectId;
 
   type:
     | "mention"
@@ -45,14 +45,14 @@ const NotificationSchema = new Schema<INotification>(
       index: true,
     },
 
-    board: {
+    module: {
       type: Schema.Types.ObjectId,
-      ref: "Board",
+      ref: "Module",
     },
 
-    item: {
+    record: {
       type: Schema.Types.ObjectId,
-      ref: "Item",
+      ref: "Record",
     },
 
     type: {

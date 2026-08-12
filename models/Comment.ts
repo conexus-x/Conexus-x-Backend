@@ -3,9 +3,9 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 export interface IComment extends Document {
   workspace: mongoose.Types.ObjectId;
 
-  board: mongoose.Types.ObjectId;
+  module: mongoose.Types.ObjectId;
 
-  item: mongoose.Types.ObjectId;
+  record: mongoose.Types.ObjectId;
 
   user: mongoose.Types.ObjectId;
 
@@ -30,16 +30,16 @@ const CommentSchema = new Schema<IComment>(
       index: true,
     },
 
-    board: {
+    module: {
       type: Schema.Types.ObjectId,
-      ref: "Board",
+      ref: "Module",
       required: true,
       index: true,
     },
 
-    item: {
+    record: {
       type: Schema.Types.ObjectId,
-      ref: "Item",
+      ref: "Record",
       required: true,
       index: true,
     },
@@ -79,7 +79,7 @@ const CommentSchema = new Schema<IComment>(
 );
 
 // Indexes
-CommentSchema.index({ item: 1, createdAt: -1 });
+CommentSchema.index({ record: 1, createdAt: -1 });
 
 const Comment: Model<IComment> =
   mongoose.models.Comment ||
