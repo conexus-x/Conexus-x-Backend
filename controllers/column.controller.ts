@@ -10,10 +10,19 @@ export const createColumn = async(req:AuthRequest,res:Response)=>{
 
     try{
         const {moduleId}=req.params;
-        const { name,type,options,width,position,isRequired,isHidden }=req.body;
+        const { name,type,options,statusOptions,width,position,isRequired,isHidden }=req.body;
+        let initialStatusOptions = statusOptions;
+        if (type === "status" && (!initialStatusOptions || initialStatusOptions.length === 0)) {
+            initialStatusOptions = [
+                { label: "Not Started", color: "#94A3B8" },
+                { label: "Working on it", color: "#F59E0B" },
+                { label: "Stuck", color: "#EF4444" },
+                { label: "Done", color: "#22C55E" },
+            ];
+        }
         const column=await Column.create({
              module: new mongoose.Types.ObjectId(moduleId as string),name,
-            type,options,width,position,isRequired,isHidden,
+            type,options,statusOptions: initialStatusOptions,width,position,isRequired,isHidden,
             createdBy: new mongoose.Types.ObjectId(req.user?.id as string)
         });
 

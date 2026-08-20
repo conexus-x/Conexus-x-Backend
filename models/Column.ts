@@ -10,6 +10,7 @@ export interface IColumn extends Document {
   | "number"
   | "status"
   | "date"
+  | "timeline"
   | "person"
   | "email"
   | "phone"
@@ -20,6 +21,11 @@ export interface IColumn extends Document {
   | "rating";
 
   options?: string[];
+
+  statusOptions?: {
+    label: string;
+    color: string;
+  }[];
 
   width: number;
 
@@ -57,6 +63,7 @@ const ColumnSchema = new Schema<IColumn>(
         "number",
         "status",
         "date",
+        "timeline",
         "person",
         "email",
         "phone",
@@ -72,6 +79,16 @@ const ColumnSchema = new Schema<IColumn>(
     options: {
       type: [String],
       default: [],
+    },
+
+    statusOptions: {
+      type: [
+        {
+          label: { type: String, required: true },
+          color: { type: String, required: true },
+        },
+      ],
+      default: undefined,
     },
 
     width: {

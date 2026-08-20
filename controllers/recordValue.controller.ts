@@ -27,22 +27,28 @@ export const createRecordValue = async (req: AuthRequest, res: Response) => {
             });
         }
 
+        const Column = mongoose.model("Column");
+        const col = await Column.findById(column);
+        if (col) {
+            if (col.type === "phone" && value && !/^[0-9+\-\s()]*$/.test(value)) {
+                return res.status(400).json({ message: "Invalid phone number format" });
+            }
+            if (col.type === "number" && value && isNaN(Number(value))) {
+                return res.status(400).json({ message: "Value must be a valid number" });
+            }
+            if (col.type === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                return res.status(400).json({ message: "Invalid email format" });
+            }
+        }
+
         const recordValue = await RecordValue.create({
-
             workspace: new mongoose.Types.ObjectId(workspace as string),
-
             module: new mongoose.Types.ObjectId(moduleId as string),
-
             collectionName: new mongoose.Types.ObjectId(collectionName as string),
-
             record: new mongoose.Types.ObjectId(record as string),
-
             column: new mongoose.Types.ObjectId(column as string),
-
             value,
-
             createdBy: new mongoose.Types.ObjectId(req.user?.id as string)
-
         });
 
         await touchWorkspace(workspace);
@@ -106,18 +112,29 @@ export const updateRecordValue = async (req: Request, res: Response) => {
 
         const { value } = req.body;
 
-        const recordValue = await RecordValue.findByIdAndUpdate(
+        const existingRv = await RecordValue.findById(recordValueId);
+        if (!existingRv) {
+            return res.status(404).json({ message: "Record value not found" });
+        }
 
-            recordValueId,
-
-            {
-                value
-            },
-
-            {
-                new: true
+        const Column = mongoose.model("Column");
+        const col = await Column.findById(existingRv.column);
+        if (col) {
+            if (col.type === "phone" && value && !/^[0-9+\-\s()]*$/.test(value)) {
+                return res.status(400).json({ message: "Invalid phone number format" });
             }
+            if (col.type === "number" && value && isNaN(Number(value))) {
+                return res.status(400).json({ message: "Value must be a valid number" });
+            }
+            if (col.type === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                return res.status(400).json({ message: "Invalid email format" });
+            }
+        }
 
+        const recordValue = await RecordValue.findByIdAndUpdate(
+            recordValueId,
+            { value },
+            { new: true }
         );
 
         if (!recordValue) {

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import User from "../models/User";
 import { hashPassword, comparePassword } from "../utils/hash";
 import { createToken } from "../services/jwt.service";
+import { generateApiKey } from "../services/apiKey.service";
 
 
 export const register = async (
@@ -36,13 +37,14 @@ export const register = async (
 
 
 
-        const user = await User.create({
+        const apiKey = generateApiKey();
 
+        const user = await User.create({
             firstName,
             lastName,
             email,
-            password: hashedPassword
-
+            password: hashedPassword,
+            apiKey
         });
 
 
@@ -89,6 +91,12 @@ export const login = async (req: Request, res: Response) => {
         const isMatch = await comparePassword(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        // Ensure user has an API key
+        if (!user.apiKey) {
+            user.apiKey = generateApiKey();
+            await user.save();
         }
 
         // Create JWT token

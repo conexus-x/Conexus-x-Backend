@@ -9,6 +9,7 @@ import collectionRoutes from "./routes/collection.routes";
 import columnRoutes from "./routes/column.routes";
 import recordRoutes from "./routes/record.routes";
 import recordValueRoutes from "./routes/recordValue.routes";
+import apiKeyRoutes from "./routes/apiKey.routes";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use("/api/collections", collectionRoutes);
 app.use("/api/columns", columnRoutes);
 app.use("/api/records", recordRoutes);
 app.use("/api/record-values", recordValueRoutes);
+app.use("/api/api-key", apiKeyRoutes);
 
 
 export default app;
