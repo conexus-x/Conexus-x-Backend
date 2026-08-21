@@ -27,7 +27,7 @@ export const getWorkspaceMembers = async (
         })
             .populate(
                 "user",
-                "firstName lastName email"
+                "firstName lastName email avatar"
             );
 
 

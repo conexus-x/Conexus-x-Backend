@@ -6,6 +6,7 @@ export interface ICollection extends Document {
     name: string;
     color?: string;
     position: number;
+    isCollapsed?: boolean;
     createdBy: mongoose.Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
@@ -32,6 +33,10 @@ const CollectionSchema = new Schema<ICollection>(
         position: {
             type: Number,
             default: 0,
+        },
+        isCollapsed: {
+            type: Boolean,
+            default: false,
         },
         createdBy: {
             type: Schema.Types.ObjectId,

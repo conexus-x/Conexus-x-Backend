@@ -10,5 +10,5 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist"
   },
-  "include": ["server.ts", "app.ts", "config/**/*", "controllers/**/*", "models/**/*", "routes/**/*", "services/**/*", "utils/**/*"]
+  "include": ["server.ts", "app.ts", "config/**/*", "controllers/**/*", "middleware/**/*", "models/**/*", "routes/**/*", "services/**/*", "utils/**/*"]
 }

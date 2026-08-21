@@ -4,12 +4,15 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface IUser extends Document {
   firstName: string;
-  lastName: string;
+  lastName?: string;
   email: string;
-  password: string;
+  password?: string;
   avatar?: string;
+  avatarPublicId?: string;
   phone?: string;
   apiKey?: string;
+  googleId?: string;
+  authProvider: "local" | "google";
 
   emailVerified: boolean;
   isActive: boolean;
@@ -31,7 +34,9 @@ const UserSchema = new Schema<IUser>(
 
     lastName: {
       type: String,
-      required: true,
+      required: function (this: IUser) {
+        return this.authProvider === "local";
+      },
       trim: true,
       maxlength: 50,
     },
@@ -46,11 +51,32 @@ const UserSchema = new Schema<IUser>(
 
     password: {
       type: String,
-      required: true,
+      required: function (this: IUser) {
+        return this.authProvider === "local";
+      },
       minlength: 8,
     },
 
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+
     avatar: {
+      type: String,
+      default: "",
+    },
+
+    // Cloudinary public_id for `avatar` — needed to delete or replace the asset.
+    avatarPublicId: {
       type: String,
       default: "",
     },
