@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import User from "../models/User";
+import User, { USER_STATUSES } from "../models/User";
 import { hashPassword, comparePassword } from "../utils/hash";
 import { createToken } from "../services/jwt.service";
 import { generateApiKey } from "../services/apiKey.service";
@@ -13,6 +13,7 @@ import {
     OAuthMode
 } from "../services/google.service";
 import { isCloudinaryConfigured, uploadAvatar } from "../services/cloudinary.service";
+import { effectiveStatus, isUserStatus } from "../services/presence.service";
 import { AuthRequest } from "../middleware/auth.middleware";
 import env from "../config/env";
 
@@ -130,7 +131,8 @@ export const login = async (req: Request, res: Response) => {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 email: user.email,
-                avatar: user.avatar
+                avatar: user.avatar,
+                status: user.status
             }
         });
     } catch (error: any) {
@@ -323,13 +325,90 @@ export const me = async (req: AuthRequest, res: Response) => {
                 lastName: user.lastName,
                 email: user.email,
                 avatar: user.avatar,
-                authProvider: user.authProvider
+                authProvider: user.authProvider,
+                status: user.status,
+                lastSeen: user.lastSeen,
+                presence: effectiveStatus(user)
             }
         });
 
     } catch (error: any) {
 
         console.error("Fetch profile error:", error.message);
+
+        res.status(500).json({ message: "Server error" });
+
+    }
+
+};
+
+
+// PATCH /api/auth/status — the user picks their own presence
+export const updateStatus = async (req: AuthRequest, res: Response) => {
+
+    try {
+
+        const { status } = req.body;
+
+        if (!isUserStatus(status)) {
+            return res.status(400).json({
+                message: `Status must be one of: ${USER_STATUSES.join(", ")}`
+            });
+        }
+
+        // Picking a status also counts as activity, so the pick is live at once.
+        const user = await User.findByIdAndUpdate(
+            req.user?.id,
+            { status, lastSeen: new Date() },
+            { returnDocument: "after" }
+        ).select("status lastSeen");
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({
+            message: "Status updated",
+            status: user.status,
+            lastSeen: user.lastSeen,
+            presence: effectiveStatus(user)
+        });
+
+    } catch (error: any) {
+
+        console.error("Update status error:", error.message);
+
+        res.status(500).json({ message: "Server error" });
+
+    }
+
+};
+
+
+// POST /api/auth/heartbeat — "still here"; keeps the picked status from expiring
+export const heartbeat = async (req: AuthRequest, res: Response) => {
+
+    try {
+
+        const user = await User.findByIdAndUpdate(
+            req.user?.id,
+            { lastSeen: new Date() },
+            { returnDocument: "after" }
+        ).select("status lastSeen");
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({
+            status: user.status,
+            lastSeen: user.lastSeen,
+            presence: effectiveStatus(user)
+        });
+
+    } catch (error: any) {
+
+        console.error("Heartbeat error:", error.message);
 
         res.status(500).json({ message: "Server error" });
 

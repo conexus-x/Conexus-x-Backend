@@ -1,6 +1,6 @@
 # reference: crm domain model
 Sources cached offline — do not re-search. UI counterpart: app/.claude/reference.md.
-Term map ours->monday: Workspace=Workspace, Module=Board, Collection=Group, Record=Item, RecordValue=Cell.
+Term map ours->monday: Workspace=Workspace, Module=Board, Collection=Group, Record=Item, SubRecord=Subitem (Record.parentRecord + Column.scope, one level), RecordValue=Cell.
 ## column type catalog (monday enum | airtable enum)
 text|singleLineText, long_text|multilineText, numbers|number, -|percent, -|currency, -|duration, status|singleSelect, dropdown|multipleSelects, tags|-, checkbox|checkbox, date|date, -|dateTime, timeline|-, week|-, hour|-, world_clock|-, people|singleCollaborator+multipleCollaborators, email|email, phone|phoneNumber, link|url, location|-, country|-, file|multipleAttachments, rating|rating, vote|-, color_picker|-, board_relation|multipleRecordLinks, dependency|-, subtasks|-, button|button, doc|richText, -|barcode, -|aiText.
 Read-only/derived: formula|formula, mirror|multipleLookupValues, -|rollup, -|count, progress|-, auto_number|autoNumber, item_id|-, creation_log|createdBy+createdTime, last_updated|lastModifiedBy+lastModifiedTime.

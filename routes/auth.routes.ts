@@ -4,7 +4,9 @@ import {
     login,
     googleAuth,
     googleCallback,
-    me
+    me,
+    updateStatus,
+    heartbeat
 } from "../controllers/auth.controller";
 import { protect } from "../middleware/auth.middleware";
 
@@ -17,5 +19,8 @@ router.get("/google", googleAuth);
 router.get("/google/callback", googleCallback);
 
 router.get("/me", protect, me);
+
+router.patch("/status", protect, updateStatus);
+router.post("/heartbeat", protect, heartbeat);
 
 export default router;

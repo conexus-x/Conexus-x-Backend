@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { protect } from "../middleware/auth.middleware";
+import { moduleFrom, requireModuleAccess } from "../middleware/access.middleware";
 import {
     createCollection,
     getModuleCollections,
@@ -14,6 +15,7 @@ const router=Router();
 router.post(
     "/:moduleId",
     protect,
+    requireModuleAccess(moduleFrom.param),
     createCollection
 );
 
@@ -21,6 +23,7 @@ router.post(
 router.get(
     "/:moduleId",
     protect,
+    requireModuleAccess(moduleFrom.param),
     getModuleCollections
 );
 
@@ -28,6 +31,7 @@ router.get(
 router.put(
     "/:collectionId",
     protect,
+    requireModuleAccess(moduleFrom.collectionParam),
     updateCollection
 );
 
@@ -35,6 +39,7 @@ router.put(
 router.delete(
     "/:collectionId",
     protect,
+    requireModuleAccess(moduleFrom.collectionParam),
     deleteCollection
 );
 

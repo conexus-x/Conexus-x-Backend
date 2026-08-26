@@ -2,6 +2,36 @@
 
 import mongoose, { Document, Model, Schema } from "mongoose";
 
+/**
+ * The presence choices the picker offers, mirrored client-side in
+ * app/lib/presence.ts — change both together. "offline" is the deliberate
+ * "appear offline", not a derived state.
+ */
+export const USER_STATUSES = [
+  "online",
+  "busy",
+  "dnd",
+  "away",
+  "offline",
+] as const;
+
+export type UserStatus = (typeof USER_STATUSES)[number];
+
+/**
+ * Built-in, non-human accounts.
+ *
+ * They exist so the audit trail can say WHAT did something rather than
+ * attributing a machine's work to whichever person happened to trigger it.
+ * A bot has no password, cannot sign in (isActive: false blocks `protect`),
+ * and is never returned by member listings.
+ *
+ * "announcer" is reserved but not built yet — the intended use is one message
+ * addressed to every member at once instead of a per-person send.
+ */
+export const SYSTEM_USER_KEYS = ["automation", "announcer"] as const;
+
+export type SystemUserKey = (typeof SYSTEM_USER_KEYS)[number];
+
 export interface IUser extends Document {
   firstName: string;
   lastName?: string;
@@ -14,8 +44,23 @@ export interface IUser extends Document {
   googleId?: string;
   authProvider: "local" | "google";
 
+  /**
+   * A built-in actor rather than a person — see utils/systemUsers.ts.
+   *
+   * Null on every real account. Set, it is BOTH the marker and the key: it is
+   * unique, so get-or-create can never race two "Automation" bots into
+   * existence, and it is what the seeder looks a bot up by rather than
+   * matching on a display name someone could change.
+   */
+  systemKey?: SystemUserKey | null;
+
   emailVerified: boolean;
   isActive: boolean;
+
+  /** What the user picked in the status menu — a preference, not a fact. */
+  status: UserStatus;
+  /** Bumped by the presence heartbeat; a stale value means the pick expired. */
+  lastSeen?: Date;
 
   lastLogin?: Date;
 
@@ -101,6 +146,25 @@ const UserSchema = new Schema<IUser>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+
+    systemKey: {
+      type: String,
+      enum: SYSTEM_USER_KEYS,
+      // `sparse` matters: without it every real user would collide on null.
+      unique: true,
+      sparse: true,
+      default: null,
+    },
+
+    status: {
+      type: String,
+      enum: USER_STATUSES,
+      default: "online",
+    },
+
+    lastSeen: {
+      type: Date,
     },
 
     lastLogin: {

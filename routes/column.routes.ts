@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { protect } from "../middleware/auth.middleware";
+import { moduleFrom, requireModuleAccess } from "../middleware/access.middleware";
 import {
     createColumn,
     getModuleColumns,
@@ -13,6 +14,7 @@ const router=Router();
 router.post(
     "/:moduleId",
     protect,
+    requireModuleAccess(moduleFrom.param),
     createColumn
 );
 
@@ -20,6 +22,7 @@ router.post(
 router.get(
     "/:moduleId",
     protect,
+    requireModuleAccess(moduleFrom.param),
     getModuleColumns
 );
 
@@ -27,6 +30,7 @@ router.get(
 router.put(
     "/:columnId",
     protect,
+    requireModuleAccess(moduleFrom.columnParam),
     updateColumn
 );
 
@@ -34,6 +38,7 @@ router.put(
 router.delete(
     "/:columnId",
     protect,
+    requireModuleAccess(moduleFrom.columnParam),
     deleteColumn
 );
 

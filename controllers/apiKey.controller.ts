@@ -53,7 +53,7 @@ export const generateKey = async (
         const user = await User.findByIdAndUpdate(
             req.user?.id,
             { apiKey },
-            { new: true }
+            { returnDocument: "after" }
         ).select("apiKey");
 
         if (!user) {

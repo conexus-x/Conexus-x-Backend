@@ -1,10 +1,19 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
+/**
+ * The assignable roles, mirrored client-side in app/lib/roles.ts — change both
+ * together. Order is least- to most-privileged; the members page reads it as the
+ * dropdown order.
+ */
+export const MEMBER_ROLES = ["guest", "member", "admin", "owner"] as const;
+
+export type MemberRole = (typeof MEMBER_ROLES)[number];
+
 export interface IWorkspaceMember extends Document {
   workspace: mongoose.Types.ObjectId | string;
   user: mongoose.Types.ObjectId | string;
 
-  role: "owner" | "admin" | "member" | "guest";
+  role: MemberRole;
 
   status: "active" | "pending" | "inactive";
 
@@ -34,7 +43,7 @@ const WorkspaceMemberSchema = new Schema<IWorkspaceMember>(
 
     role: {
       type: String,
-      enum: ["owner", "admin", "member", "guest"],
+      enum: MEMBER_ROLES,
       default: "member",
     },
 

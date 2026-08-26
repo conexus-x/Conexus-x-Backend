@@ -6,6 +6,16 @@ export interface IWorkspace extends Document {
     owner: mongoose.Types.ObjectId;
     logo?: string;
     description?: string;
+
+    /**
+     * Which icon represents this workspace, as a KEY from the client's catalog
+     * (app/lib/workspaceIcons.tsx) — never a class name, a URL or an emoji.
+     *
+     * A key means the rendering stays the client's business: the icon set can be
+     * restyled or swapped without a migration, and an unknown key falls back
+     * rather than rendering something broken. Empty means "not chosen".
+     */
+    icon?: string;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -36,6 +46,12 @@ const WorkspaceSchema = new Schema<IWorkspace>(
             type: String,
             default: "",
         },
+        icon: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
         description: {
             type: String,
             default: "",

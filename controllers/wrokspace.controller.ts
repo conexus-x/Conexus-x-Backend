@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Workspace from "../models/Workspace";
 import WorkspaceMember from "../models/WorkspaceMember";
 import mongoose from "mongoose";
+import { paginationMeta, parsePagination } from "../utils/pagination";
 import Module from "../models/Module";
 import Column from "../models/Column";
 import Record from "../models/Record";
@@ -23,7 +24,7 @@ export interface AuthRequest extends Request {
 // Create Workspace
 export const createWorkspace = async (req: AuthRequest, res: Response) => {
     try {
-        const { name } = req.body;
+        const { name, icon } = req.body;
         const userId = req.user?.id;
 
         if (!userId) {
@@ -45,6 +46,8 @@ export const createWorkspace = async (req: AuthRequest, res: Response) => {
         const workspace = await Workspace.create({
             name,
             slug,
+            // Trusted only as an opaque key — the client decides what it draws.
+            icon: typeof icon === "string" ? icon.trim().slice(0, 40) : "",
             owner: userId
         });
 
@@ -76,9 +79,17 @@ export const getWorkspaces = async (req: AuthRequest, res: Response) => {
             });
         }
 
-        const memberships = await WorkspaceMember.find({
+        const pagination = parsePagination(req.query);
+
+        const membershipQuery = WorkspaceMember.find({
             user: userId
         }).populate("workspace");
+
+        if (pagination.enabled) {
+            membershipQuery.skip(pagination.skip).limit(pagination.limit);
+        }
+
+        const memberships = await membershipQuery;
 
         // Collect workspace IDs and count modules for each
         const workspaceIds = memberships
@@ -106,8 +117,16 @@ export const getWorkspaces = async (req: AuthRequest, res: Response) => {
             };
         });
 
+        if (!pagination.enabled) {
+            return res.json({ workspaces });
+        }
+
         return res.json({
-            workspaces
+            workspaces,
+            pagination: paginationMeta(
+                await WorkspaceMember.countDocuments({ user: userId }),
+                pagination
+            )
         });
     } catch (error: any) {
         return res.status(500).json({
@@ -140,13 +159,21 @@ export const getWorkspace = async (req: Request, res: Response) => {
 // Update Workspace
 export const updateWorkspace = async (req: Request, res: Response) => {
     try {
+        /**
+         * Only the fields a rename/settings form actually sends. Spreading
+         * req.body here would let a caller rewrite owner or slug.
+         */
+        const patch: Record<string, unknown> = {};
+
+        if (typeof req.body.name === "string") patch.name = req.body.name;
+        if (typeof req.body.description === "string") patch.description = req.body.description;
+        if (typeof req.body.icon === "string") patch.icon = req.body.icon.trim().slice(0, 40);
+
         const workspace = await Workspace.findByIdAndUpdate(
             req.params.id,
+            patch,
             {
-                name: req.body.name
-            },
-            {
-                new: true
+                returnDocument: "after"
             }
         );
 

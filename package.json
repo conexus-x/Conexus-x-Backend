@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.10.1",
     "cors": "^2.8.6",

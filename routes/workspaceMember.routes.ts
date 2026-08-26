@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
     getWorkspaceMembers,
     addWorkspaceMember,
+    updateWorkspaceMemberRole,
     removeWorkspaceMember
 } from "../controllers/workspaceMember.controller";
 
@@ -25,6 +26,14 @@ router.post(
     "/:workspaceId",
     protect,
     addWorkspaceMember
+);
+
+
+
+router.put(
+    "/:workspaceId/:userId",
+    protect,
+    updateWorkspaceMemberRole
 );
 
 

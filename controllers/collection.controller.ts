@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
+import { paginationMeta, parsePagination, parseSort } from "../utils/pagination";
 import { AuthRequest } from "./wrokspace.controller";
 import Collection from "../models/Collection";
 import Module from "../models/Module";
-import { touchWorkspace } from "../utils/workspaceHelper";
+import { touchModule, touchWorkspace } from "../utils/workspaceHelper";
+import { logActivity } from "../services/activity.service";
 
 
 export const createCollection = async(req:AuthRequest,res:Response)=>{
@@ -28,6 +30,18 @@ export const createCollection = async(req:AuthRequest,res:Response)=>{
         const moduleItem = await Module.findById(moduleId);
         if (moduleItem) {
             await touchWorkspace(moduleItem.workspace);
+            await touchModule(moduleItem._id);
+
+            await logActivity({
+                workspace: moduleItem.workspace,
+                user: req.user?.id,
+                action: "collection_created",
+                module: String(moduleId),
+                collectionName: collection._id,
+                targetName: collection.name,
+                after: collection.name,
+                message: `created collection "${collection.name}"`
+            });
         }
 
 
@@ -62,24 +76,40 @@ export const getModuleCollections = async(req:Request,res:Response)=>{
         const {moduleId}=req.params;
 
 
-        const collections=await Collection.find({
-
+        const filter = {
             module: new mongoose.Types.ObjectId(moduleId as string)
+        };
 
-        })
-        .sort({
-            position:1
-        })
-        .populate(
-            "createdBy",
-            "firstName lastName email"
+        const pagination = parsePagination(req.query);
+        const sort = parseSort(
+            req.query,
+            ["position", "name", "createdAt", "updatedAt"],
+            { position: 1 }
         );
 
+        const query = Collection.find(filter)
+            .sort(sort)
+            .populate(
+                "createdBy",
+                "firstName lastName email"
+            );
+
+        if (pagination.enabled) {
+            query.skip(pagination.skip).limit(pagination.limit);
+        }
+
+        const collections = await query;
+
+        if (!pagination.enabled) {
+            return res.json({ collections });
+        }
 
         res.json({
-
-            collections
-
+            collections,
+            pagination: paginationMeta(
+                await Collection.countDocuments(filter),
+                pagination
+            )
         });
 
 
@@ -99,12 +129,14 @@ export const getModuleCollections = async(req:Request,res:Response)=>{
 
 
 
-export const updateCollection = async(req:Request,res:Response)=>{
+export const updateCollection = async(req:AuthRequest,res:Response)=>{
 
     try{
 
         const {collectionId}=req.params;
 
+        // Captured before the write — findByIdAndUpdate returns the new doc.
+        const previous = await Collection.findById(collectionId);
 
         const collection=await Collection.findByIdAndUpdate(
 
@@ -132,6 +164,21 @@ export const updateCollection = async(req:Request,res:Response)=>{
         const moduleItem = await Module.findById(collection.module);
         if (moduleItem) {
             await touchWorkspace(moduleItem.workspace);
+            await touchModule(moduleItem._id);
+
+            if (previous && previous.name !== collection.name) {
+                await logActivity({
+                    workspace: moduleItem.workspace,
+                    user: req.user?.id,
+                    action: "collection_updated",
+                    module: collection.module,
+                    collectionName: collection._id,
+                    targetName: collection.name,
+                    before: previous.name,
+                    after: collection.name,
+                    message: `renamed collection "${previous.name}" to "${collection.name}"`
+                });
+            }
         }
 
 
@@ -159,7 +206,7 @@ export const updateCollection = async(req:Request,res:Response)=>{
 
 
 
-export const deleteCollection = async(req:Request,res:Response)=>{
+export const deleteCollection = async(req:AuthRequest,res:Response)=>{
 
     try{
 
@@ -182,6 +229,18 @@ export const deleteCollection = async(req:Request,res:Response)=>{
         const moduleItem = await Module.findById(collection.module);
         if (moduleItem) {
             await touchWorkspace(moduleItem.workspace);
+            await touchModule(moduleItem._id);
+
+            await logActivity({
+                workspace: moduleItem.workspace,
+                user: req.user?.id,
+                action: "collection_deleted",
+                module: collection.module,
+                targetName: collection.name,
+                before: collection.name,
+                after: null,
+                message: `deleted collection "${collection.name}"`
+            });
         }
 
 
