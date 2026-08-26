@@ -24,7 +24,7 @@ export const chatWithAgent = async (req: AuthRequest, res: Response) => {
 
         if (!isAgentConfigured()) {
             return res.status(503).json({
-                message: "Atlas is not configured — set ANTHROPIC_API_KEY and restart."
+                message: "Aquiline is not configured — set ANTHROPIC_API_KEY and restart."
             });
         }
 
@@ -76,7 +76,7 @@ export const chatWithAgent = async (req: AuthRequest, res: Response) => {
 
         if (status === 401 || status === 403) {
             return res.status(503).json({
-                message: "Atlas key was rejected by Anthropic — check ANTHROPIC_API_KEY."
+                message: "Aquiline key was rejected by Anthropic — check ANTHROPIC_API_KEY."
             });
         }
 
@@ -90,13 +90,13 @@ export const chatWithAgent = async (req: AuthRequest, res: Response) => {
             // Ours to fix, not the user's: a malformed request means the loop
             // built something the API rejected.
             return res.status(502).json({
-                message: "Atlas built a bad request — see the server log for the reason."
+                message: "Aquiline built a bad request — see the server log for the reason."
             });
         }
 
         if (status === 402) {
             return res.status(402).json({
-                message: "Anthropic credit exhausted — top up to keep using Atlas."
+                message: "Anthropic credit exhausted — top up to keep using Aquiline."
             });
         }
 
@@ -107,7 +107,7 @@ export const chatWithAgent = async (req: AuthRequest, res: Response) => {
         }
 
         return res.status(500).json({
-            message: "Atlas hit an unexpected error — see the server log."
+            message: "Aquiline hit an unexpected error — see the server log."
         });
 
     }

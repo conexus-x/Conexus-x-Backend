@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import User, { USER_STATUSES } from "../models/User";
+import User, { ACCOUNT_TYPES, USER_STATUSES } from "../models/User";
+import { generateOtp, otpExpiry, sendOtpEmail } from "../services/otp.service";
 import { hashPassword, comparePassword } from "../utils/hash";
 import { createToken } from "../services/jwt.service";
 import { generateApiKey } from "../services/apiKey.service";
@@ -52,18 +53,59 @@ export const register = async (
 
         const apiKey = generateApiKey();
 
+        const otp = generateOtp();
+
         const user = await User.create({
             firstName,
             lastName,
             email,
             password: hashedPassword,
-            apiKey
+            apiKey,
+            otpCode: otp,
+            otpExpiresAt: otpExpiry()
         });
 
 
+        /**
+         * A failed send must NOT fail the request.
+         *
+         * The account already exists at this point, so answering 500 would
+         * leave the caller believing registration failed while the email is
+         * taken — and their next attempt gets "User already exists" with no way
+         * forward. Resend is the recovery path, so the response says so.
+         */
+        let delivered = true;
+
+        try {
+            await sendOtpEmail(email, otp);
+        } catch (mailError: any) {
+            delivered = false;
+            console.error("OTP send failed:", mailError?.message);
+        }
+
+
+        /**
+         * An EXPLICIT shape, never the mongoose document.
+         *
+         * `select: false` on otpCode/otpExpiresAt only governs QUERIES — a
+         * document handed back by .create() still carries every value that was
+         * just written, so returning `user` here published the signup code in
+         * the register response and defeated the whole verification step. (It
+         * published the password hash too, which it had been doing all along.)
+         * Allow-list the fields; do not try to subtract the secret ones.
+         */
         res.json({
-            message: "User created",
-            user
+            message: delivered
+                ? "User created. Check your email for the verification code."
+                : "User created, but the code could not be sent. Use Resend.",
+            emailSent: delivered,
+            user: {
+                id: user._id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                emailVerified: user.emailVerified
+            }
         });
 
 
@@ -94,10 +136,28 @@ export const login = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Email and password are required" });
         }
 
-        // Find user by email
-        const user = await User.findOne({ email });
+        // Find user by email. otpExpiresAt is select:false, so ask for it —
+        // it is the gate below.
+        const user = await User.findOne({ email }).select("+otpExpiresAt");
         if (!user) {
             return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        /**
+         * Unverified signups are blocked, but ONLY those that actually went
+         * through the code flow.
+         *
+         * The test is "has a pending otpExpiresAt", not "emailVerified is
+         * false". Every account created before this flow existed has
+         * emailVerified false and no pending code — gating on the boolean
+         * alone would have locked out every existing user on deploy.
+         */
+        if (!user.emailVerified && user.otpExpiresAt) {
+            return res.status(403).json({
+                message: "Verify your email first — check your inbox for the code.",
+                needsVerification: true,
+                email: user.email
+            });
         }
 
         // Google-only accounts have no password to compare
@@ -132,7 +192,8 @@ export const login = async (req: Request, res: Response) => {
                 lastName: user.lastName,
                 email: user.email,
                 avatar: user.avatar,
-                status: user.status
+                status: user.status,
+                preferences: user.preferences
             }
         });
     } catch (error: any) {
@@ -306,6 +367,186 @@ export const googleCallback = async (req: Request, res: Response) => {
 
 
 // GET /api/auth/me — resolves the signed-in user from the Bearer token
+/**
+ * Finish signup: exchange the emailed code for a verified account.
+ *
+ * The comparison is deliberately narrow. An expired code is rejected with its
+ * own message rather than a generic failure, because "wrong code" and "too
+ * late" need different actions from the user — retyping versus resending.
+ */
+export const verifyOtp = async (req: Request, res: Response) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) {
+            return res.status(400).json({
+                message: "Email and code are required"
+            });
+        }
+
+        // Both fields are `select: false` on the schema, so they have to be
+        // asked for explicitly here.
+        const user = await User.findOne({ email }).select(
+            "+otpCode +otpExpiresAt"
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: "No account for that email" });
+        }
+
+        if (user.emailVerified) {
+            return res.json({ message: "Email already verified", verified: true });
+        }
+
+        if (!user.otpCode || !user.otpExpiresAt) {
+            return res.status(400).json({
+                message: "No code is pending. Request a new one."
+            });
+        }
+
+        if (user.otpExpiresAt.getTime() < Date.now()) {
+            return res.status(400).json({
+                message: "That code has expired. Request a new one.",
+                expired: true
+            });
+        }
+
+        if (String(user.otpCode) !== String(otp).trim()) {
+            return res.status(400).json({ message: "That code is not correct" });
+        }
+
+        user.emailVerified = true;
+        // Cleared on success: a spent code must not be replayable, and an
+        // absent otpExpiresAt is what tells login this account is settled.
+        user.otpCode = null;
+        user.otpExpiresAt = null;
+
+        await user.save();
+
+        /**
+         * A SESSION, not just a boolean.
+         *
+         * Proving control of the inbox is the same proof a password login
+         * gives, so sending them back to a sign-in form to prove it again is
+         * ceremony. It is also what makes the setup funnel possible: creating a
+         * workspace, inviting people and saving the funnel answers all sit
+         * behind `protect`, and without a token here every one of them would
+         * have to be stashed in the browser and replayed later.
+         */
+        const token = createToken(user._id.toString());
+
+        return res.json({
+            message: "Email verified",
+            verified: true,
+            token,
+            user: {
+                id: user._id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                avatar: user.avatar,
+                emailVerified: true
+            }
+        });
+    } catch (error: any) {
+        console.error("OTP verify error:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+
+/**
+ * Records what the signup funnel asked.
+ *
+ * Deliberately NOT part of workspace creation: the funnel is skippable, the
+ * answers are about the person rather than the workspace, and an analytics
+ * dashboard needs them whether or not a workspace was ever built.
+ *
+ * Every field is optional and unknown keys are ignored, so adding a question to
+ * the funnel never needs a matching migration here.
+ */
+export const saveOnboarding = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        const { accountType, referralSource, organizationName, teamSize } =
+            req.body ?? {};
+
+        const update: Record<string, unknown> = { onboardedAt: new Date() };
+
+        // Validated against the enum rather than trusted: this column is
+        // grouped by in the admin dashboard, and one stray value there becomes
+        // a permanent extra bar on every chart.
+        if (accountType && ACCOUNT_TYPES.includes(accountType)) {
+            update.accountType = accountType;
+        }
+
+        if (typeof referralSource === "string" && referralSource.trim()) {
+            update.referralSource = referralSource.trim().slice(0, 80);
+        }
+
+        if (typeof organizationName === "string" && organizationName.trim()) {
+            update.organizationName = organizationName.trim().slice(0, 120);
+        }
+
+        if (typeof teamSize === "string" && teamSize.trim()) {
+            update.teamSize = teamSize.trim().slice(0, 20);
+        }
+
+        await User.findByIdAndUpdate(req.user?.id, update);
+
+        return res.json({ message: "Saved" });
+    } catch (error: any) {
+        console.error("Onboarding save error:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+
+/** Issue a fresh code, replacing whatever was outstanding. */
+export const resendOtp = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: "No account for that email" });
+        }
+
+        if (user.emailVerified) {
+            return res.json({ message: "Email already verified", verified: true });
+        }
+
+        const otp = generateOtp();
+
+        user.otpCode = otp;
+        user.otpExpiresAt = otpExpiry();
+
+        await user.save();
+
+        try {
+            await sendOtpEmail(email, otp);
+        } catch (mailError: any) {
+            console.error("OTP resend failed:", mailError?.message);
+            return res.status(502).json({
+                message: "Could not send the email. Try again shortly."
+            });
+        }
+
+        return res.json({ message: "A new code is on its way" });
+    } catch (error: any) {
+        console.error("OTP resend error:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+};
+
+
 export const me = async (req: AuthRequest, res: Response) => {
 
     try {
@@ -328,7 +569,11 @@ export const me = async (req: AuthRequest, res: Response) => {
                 authProvider: user.authProvider,
                 status: user.status,
                 lastSeen: user.lastSeen,
-                presence: effectiveStatus(user)
+                presence: effectiveStatus(user),
+                // Rides along on the call the client already makes on arrival,
+                // so a fresh browser lays the sidebar out correctly on the
+                // first paint after sign-in rather than a beat later.
+                preferences: user.preferences
             }
         });
 
@@ -377,6 +622,56 @@ export const updateStatus = async (req: AuthRequest, res: Response) => {
     } catch (error: any) {
 
         console.error("Update status error:", error.message);
+
+        res.status(500).json({ message: "Server error" });
+
+    }
+
+};
+
+
+/**
+ * PATCH /api/auth/preferences — the caller's own UI settings.
+ *
+ * A partial merge, not a replace: the body names only what changed, so a client
+ * that predates the next preference cannot blank it by omission. Unknown keys
+ * are ignored rather than rejected — this is a settings bag, and a stray field
+ * from an older build is not worth a 400.
+ */
+export const updatePreferences = async (req: AuthRequest, res: Response) => {
+
+    try {
+
+        const { sidebarCollapsed } = req.body;
+
+        const patch: Record<string, boolean> = {};
+
+        if (typeof sidebarCollapsed === "boolean") {
+            patch["preferences.sidebarCollapsed"] = sidebarCollapsed;
+        }
+
+        if (Object.keys(patch).length === 0) {
+            return res.status(400).json({ message: "No known preference in body" });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user?.id,
+            { $set: patch },
+            { returnDocument: "after" }
+        ).select("preferences");
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({
+            message: "Preferences updated",
+            preferences: user.preferences
+        });
+
+    } catch (error: any) {
+
+        console.error("Update preferences error:", error.message);
 
         res.status(500).json({ message: "Server error" });
 

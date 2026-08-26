@@ -29,7 +29,7 @@ import {
 } from "./blueprint.service";
 
 /**
- * What Atlas can actually do.
+ * What Aquiline can actually do.
  *
  * Two rules hold this file together:
  *
@@ -712,7 +712,7 @@ export async function executeTool(
                 module: moduleItem._id,
                 targetName: moduleItem.name,
                 after: moduleItem.name,
-                message: `created module "${moduleItem.name}" via Atlas`
+                message: `created module "${moduleItem.name}" via Aquiline`
             });
 
             return {
@@ -784,7 +784,7 @@ export async function executeTool(
                 collectionName: collection._id,
                 targetName: collection.name,
                 after: collection.name,
-                message: `created collection "${collection.name}" via Atlas`
+                message: `created collection "${collection.name}" via Aquiline`
             });
 
             return {
@@ -880,7 +880,7 @@ export async function executeTool(
                 column: column._id,
                 targetName: column.name,
                 after: column.name,
-                message: `added ${type} column "${column.name}" via Atlas`
+                message: `added ${type} column "${column.name}" via Aquiline`
             });
 
             return {
@@ -974,7 +974,7 @@ export async function executeTool(
                     record: record._id,
                     targetName: record.name,
                     after: record.name,
-                    message: `created record "${record.name}" via Atlas`
+                    message: `created record "${record.name}" via Aquiline`
                 });
 
                 // Same event the REST route emits, so recipes fire either way.
@@ -1052,7 +1052,7 @@ export async function executeTool(
                 column: columnId,
                 before,
                 after: value,
-                message: `set a field on "${record.name}" via Atlas`
+                message: `set a field on "${record.name}" via Aquiline`
             });
 
             void runAutomations({
@@ -1141,7 +1141,7 @@ export async function executeTool(
                 record: record._id,
                 targetName: record.name,
                 after: message,
-                message: `posted an amendment on "${record.name}" via Atlas`
+                message: `posted an amendment on "${record.name}" via Aquiline`
             });
 
             // No runAutomations: no trigger reads "an amendment was posted".
@@ -1227,7 +1227,7 @@ export async function executeTool(
                         targetName: workspace.name,
                         before,
                         after: workspace.name,
-                        message: `renamed workspace "${before}" to "${workspace.name}" via Atlas`
+                        message: `renamed workspace "${before}" to "${workspace.name}" via Aquiline`
                     });
 
                     return {
@@ -1281,7 +1281,7 @@ export async function executeTool(
                         targetName: moduleItem.name,
                         before,
                         after: moduleItem.name,
-                        message: `updated board "${moduleItem.name}" via Atlas`
+                        message: `updated module "${moduleItem.name}" via Aquiline`
                     });
 
                     return {
@@ -1327,7 +1327,7 @@ export async function executeTool(
                             targetName: collection.name,
                             before,
                             after: collection.name,
-                            message: `renamed collection "${before}" to "${collection.name}" via Atlas`
+                            message: `renamed collection "${before}" to "${collection.name}" via Aquiline`
                         });
                     }
 
@@ -1374,7 +1374,7 @@ export async function executeTool(
                             targetName: column.name,
                             before,
                             after: column.name,
-                            message: `renamed column "${before}" to "${column.name}" via Atlas`
+                            message: `renamed column "${before}" to "${column.name}" via Aquiline`
                         });
                     }
 
@@ -1435,8 +1435,8 @@ export async function executeTool(
                         before,
                         after: record.name,
                         message: moved
-                            ? `moved "${record.name}" to another collection via Atlas`
-                            : `renamed record "${before}" to "${record.name}" via Atlas`
+                            ? `moved "${record.name}" to another collection via Aquiline`
+                            : `renamed record "${before}" to "${record.name}" via Aquiline`
                     });
 
                     if (moved) {
@@ -1571,7 +1571,7 @@ export async function executeTool(
                         targetName: moduleItem.name,
                         before: moduleItem.name,
                         after: null,
-                        message: `deleted module "${moduleItem.name}" via Atlas`
+                        message: `deleted module "${moduleItem.name}" via Aquiline`
                     });
 
                     return {
@@ -1631,7 +1631,7 @@ export async function executeTool(
                             targetName: document.name,
                             before: document.name,
                             after: null,
-                            message: `deleted ${kind} "${document.name}" via Atlas`
+                            message: `deleted ${kind} "${document.name}" via Aquiline`
                         });
                     }
 

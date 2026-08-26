@@ -302,7 +302,7 @@ export const buildBlueprint = async (
             module: moduleItem._id,
             targetName: moduleItem.name,
             after: moduleItem.name,
-            message: `created module "${moduleItem.name}" via Atlas`
+            message: `created module "${moduleItem.name}" via Aquiline`
         });
 
         // -------------------------------------------------------- columns

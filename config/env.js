@@ -15,6 +15,35 @@ const env = {
         process.env.GOOGLE_REDIRECT_URI ||
         `http://localhost:${port}/api/auth/google/callback`,
 
+    /**
+     * Mail transport for signup codes.
+     *
+     * Read HERE rather than in the service, for the reason every other setting
+     * is: this module calls dotenv.config() itself, at the top, before anything
+     * reads process.env. services/otp.service.ts used to read process.env
+     * directly and was evaluated through server.ts's import graph BEFORE its
+     * dotenv.config() line ever ran, so every MAIL_* lookup came back undefined
+     * and sends died on localhost:587. Going through env removes that whole
+     * class of bug, and it is where the codebase already keeps configuration.
+     *
+     * Host and port are defaulted because they are per-provider facts, not
+     * secrets; user and password have no default and must come from .env.
+     */
+    mail_host: process.env.MAIL_HOST || "smtp.gmail.com",
+    mail_port: Number(process.env.MAIL_PORT) || 465,
+    mail_user: process.env.MAIL_USER,
+    mail_password: process.env.MAIL_PASSWORD,
+    /** Most relays reject a missing From, so fall back to the mailbox itself. */
+    mail_from: process.env.MAIL_FROM || process.env.MAIL_USER,
+    /**
+     * Implicit TLS on 465, STARTTLS on 587 — derived from the port so the two
+     * cannot be set inconsistently. MAIL_SECURE overrides for anything exotic.
+     */
+    mail_secure:
+        process.env.MAIL_SECURE !== undefined
+            ? process.env.MAIL_SECURE === "true"
+            : (Number(process.env.MAIL_PORT) || 465) === 465,
+
     cloudinary_cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     cloudinary_api_key: process.env.CLOUDINARY_API_KEY,
     cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET,
@@ -28,7 +57,7 @@ const env = {
     activity_retention_days: Number(process.env.ACTIVITY_RETENTION_DAYS ?? 90),
 
     /**
-     * Atlas, the chat agent. The key is read here and used only by
+     * Aquiline, the chat agent. The key is read here and used only by
      * services/agent.service.ts — never logged, never returned to a client.
      *
      * The model is a knob on purpose: Haiku 4.5 is the cheapest model that

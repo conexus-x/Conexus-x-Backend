@@ -24,7 +24,7 @@ export interface AuthRequest extends Request {
 // Create Workspace
 export const createWorkspace = async (req: AuthRequest, res: Response) => {
     try {
-        const { name, icon } = req.body;
+        const { name, icon, banner } = req.body;
         const userId = req.user?.id;
 
         if (!userId) {
@@ -48,6 +48,7 @@ export const createWorkspace = async (req: AuthRequest, res: Response) => {
             slug,
             // Trusted only as an opaque key — the client decides what it draws.
             icon: typeof icon === "string" ? icon.trim().slice(0, 40) : "",
+            banner: typeof banner === "string" ? banner.trim().slice(0, 300) : "",
             owner: userId
         });
 
@@ -168,6 +169,10 @@ export const updateWorkspace = async (req: Request, res: Response) => {
         if (typeof req.body.name === "string") patch.name = req.body.name;
         if (typeof req.body.description === "string") patch.description = req.body.description;
         if (typeof req.body.icon === "string") patch.icon = req.body.icon.trim().slice(0, 40);
+        // Same allowlist rule as icon: named explicitly so a caller still
+        // cannot reach owner or slug through this endpoint.
+        if (typeof req.body.banner === "string")
+            patch.banner = req.body.banner.trim().slice(0, 300);
 
         const workspace = await Workspace.findByIdAndUpdate(
             req.params.id,

@@ -32,6 +32,23 @@ export const SYSTEM_USER_KEYS = ["automation", "announcer"] as const;
 
 export type SystemUserKey = (typeof SYSTEM_USER_KEYS)[number];
 
+/**
+ * How the account describes itself.
+ *
+ * Stored so the product can diverge per type later (an organisation wants
+ * departments and SSO; a personal account wants neither) and so the admin
+ * dashboard can segment signups. "other" exists rather than a free-text box:
+ * an unbounded field cannot be counted.
+ */
+export const ACCOUNT_TYPES = [
+  "personal",
+  "team",
+  "organization",
+  "other",
+] as const;
+
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
 export interface IUser extends Document {
   firstName: string;
   lastName?: string;
@@ -55,7 +72,55 @@ export interface IUser extends Document {
   systemKey?: SystemUserKey | null;
 
   emailVerified: boolean;
+
+  /**
+   * What this account said about itself during signup.
+   *
+   * Kept on the USER rather than the workspace: it describes the person's
+   * situation at the moment they joined, which is what an acquisition funnel
+   * is measured on. A workspace can be renamed, transferred or deleted; the
+   * answer to "where did you hear about us" must outlive all three.
+   *
+   * Every field is optional because the funnel is skippable at every step, and
+   * a half-answered funnel is still worth more than none.
+   */
+  accountType?: AccountType | null;
+  /** Free text on purpose - the option list will grow and old rows must survive. */
+  referralSource?: string | null;
+  organizationName?: string | null;
+  teamSize?: string | null;
+  /** Null until the funnel is finished; the flag that stops it reappearing. */
+  onboardedAt?: Date | null;
+
+  /**
+   * The pending signup code, and when it lapses.
+   *
+   * Both are cleared the moment the code is accepted, so "has an otpExpiresAt"
+   * means "signed up and has not finished verifying" — which is exactly the
+   * test login uses to decide whether to let someone in. Accounts that predate
+   * this flow have neither field and are therefore never blocked by it.
+   */
+  otpCode?: string | null;
+  otpExpiresAt?: Date | null;
+
   isActive: boolean;
+
+  /**
+   * How this person has set the app up for themselves.
+   *
+   * On the USER, not in the browser: a layout choice made on a laptop is still
+   * the choice they made when they open the app on another machine, and
+   * clearing site data should not silently undo it. The client keeps a local
+   * mirror so the first paint needs no round trip, but this is the truth it
+   * falls back to.
+   *
+   * A nested object rather than a flat `sidebarCollapsed` column so the next
+   * preference is a key here, not another migration.
+   */
+  preferences: {
+    /** Rail mode for the main navigation sidebar. */
+    sidebarCollapsed: boolean;
+  };
 
   /** What the user picked in the status menu — a preference, not a fact. */
   status: UserStatus;
@@ -143,6 +208,56 @@ const UserSchema = new Schema<IUser>(
       default: false,
     },
 
+    // Funnel answers. Indexed where the admin dashboard will group by them.
+    accountType: {
+      type: String,
+      enum: ACCOUNT_TYPES,
+      default: null,
+      index: true,
+    },
+
+    referralSource: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 80,
+      index: true,
+    },
+
+    organizationName: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 120,
+    },
+
+    teamSize: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 20,
+    },
+
+    onboardedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // `select: false` on both: a signup code is a short-lived credential and
+    // has no business riding along on every user read (the roster, populated
+    // `createdBy`, /auth/me). The two places that need it ask for it.
+    otpCode: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
+    otpExpiresAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
@@ -151,10 +266,24 @@ const UserSchema = new Schema<IUser>(
     systemKey: {
       type: String,
       enum: SYSTEM_USER_KEYS,
-      // `sparse` matters: without it every real user would collide on null.
-      unique: true,
-      sparse: true,
-      default: null,
+      // NO `default: null`, and the uniqueness now lives in the partial index
+      // declared below rather than here. A sparse unique index skips documents
+      // where the field is MISSING but still indexes an explicit null - so a
+      // default of null made every human account collide with the previous one
+      // (E11000 on systemKey_1), which blocked registration outright. Leaving
+      // the field absent is what "not a bot" has to look like.
+    },
+
+    // _id: false — this is a plain settings bag, not a subdocument anyone
+    // needs to address on its own.
+    preferences: {
+      type: new Schema(
+        {
+          sidebarCollapsed: { type: Boolean, default: false },
+        },
+        { _id: false }
+      ),
+      default: () => ({ sidebarCollapsed: false }),
     },
 
     status: {
@@ -173,6 +302,23 @@ const UserSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
+  }
+);
+
+
+/**
+ * Uniqueness for bot keys only.
+ *
+ * partialFilterExpression, not sparse: it indexes exactly the documents whose
+ * systemKey is a real string, so two bots can never share a key while any
+ * number of humans coexist with the field absent.
+ * scripts/fix_system_key_index.ts migrates an existing database onto this.
+ */
+UserSchema.index(
+  { systemKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { systemKey: { $type: "string" } },
   }
 );
 

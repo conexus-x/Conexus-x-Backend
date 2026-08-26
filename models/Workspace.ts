@@ -16,6 +16,20 @@ export interface IWorkspace extends Document {
      * rather than rendering something broken. Empty means "not chosen".
      */
     icon?: string;
+
+    /**
+     * This workspace's cover art.
+     *
+     * PER WORKSPACE, and stored as either a catalog KEY (app/lib/banners.ts) or
+     * an absolute URL. The key form follows `icon` above — rendering stays the
+     * client's business, so the catalog can be restyled or reordered with no
+     * migration. The URL form is what lets a workspace point at something the
+     * catalog does not contain, which is the whole point of per-workspace art
+     * and is where uploaded covers will land.
+     *
+     * The client resolves both shapes; the server only stores and length-caps.
+     */
+    banner?: string;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -50,6 +64,15 @@ const WorkspaceSchema = new Schema<IWorkspace>(
             type: String,
             trim: true,
             default: "",
+        },
+
+        banner: {
+            type: String,
+            default: "",
+            trim: true,
+            // Long enough for a Cloudinary URL, short enough that the field
+            // cannot be used as free storage.
+            maxlength: 300,
         },
 
         description: {

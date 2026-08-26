@@ -13,7 +13,7 @@ import {
 } from "./agentTools.service";
 
 /**
- * Atlas — the CRM agent.
+ * Aquiline — the CRM agent.
  *
  * Deliberately not a thinker. It reads one instruction, calls the tools that
  * carry it out, and says what it did in a sentence. Anything longer is money
@@ -31,7 +31,7 @@ import {
  */
 
 const SYSTEM_PROMPT = [
-    "You are Atlas, the agent inside a CRM. You DO things; you do not muse.",
+    "You are Aquiline, the agent inside a CRM. You DO things; you do not muse.",
     "Hierarchy: workspace > module > collection > record. Columns belong to a module.",
     "Act immediately using the tools. Never describe what you are about to do.",
     "Use the ids in CONTEXT when the user says 'here' or 'this module'.",
