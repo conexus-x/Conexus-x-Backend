@@ -49,6 +49,47 @@ export const ACCOUNT_TYPES = [
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
+/**
+ * What the account PAYS, which is a different question from what it IS.
+ *
+ * Deliberately NOT folded into `accountType` above. That field is the signup
+ * funnel's answer to "who are you" (personal / team / organization / other) and
+ * is what acquisition is segmented on; this one is the billing tier and is what
+ * spending is gated on. They look similar and drift apart immediately: a
+ * "team" can be on Free and a "personal" account can be on Paid, and merging
+ * them would have destroyed the funnel data to answer a billing question.
+ */
+export const ACCOUNT_PLANS = ["free", "paid", "enterprise"] as const;
+
+export type AccountPlan = (typeof ACCOUNT_PLANS)[number];
+
+/**
+ * The AI spending ledger for one account.
+ *
+ * Counters live on the USER rather than in a per-call collection because this
+ * is what has to be read and written on the hot path of every turn, and a sum
+ * over a growing log is the wrong shape for a gate that runs before each
+ * request. `lifetimeCredits` never resets, so support can still answer "how
+ * much has this account ever used" without that log existing.
+ *
+ * The ALLOWANCE is not stored here — it comes from the plan (see
+ * services/aiCredits.service.ts), so changing the free tier is a config edit
+ * rather than a migration over every free row. `allowanceOverride` is the
+ * escape hatch for a negotiated enterprise number.
+ */
+export interface AiCredits {
+    /** Credits spent in the current period. Reset when the period rolls. */
+    used: number;
+    /** Per-account allowance, when it differs from the plan's. */
+    allowanceOverride?: number | null;
+    periodStart: Date;
+    /** When `used` returns to zero — the lazy reset reads this. */
+    periodEnd: Date;
+    /** Never reset. */
+    lifetimeCredits: number;
+    lastUsedAt?: Date | null;
+}
+
 export interface IUser extends Document {
   firstName: string;
   lastName?: string;
@@ -93,6 +134,16 @@ export interface IUser extends Document {
   onboardedAt?: Date | null;
 
   /**
+   * Billing tier. Every account has one from the moment it is created — the
+   * schema default writes it on the register and the Google-signup paths
+   * alike, so there is no such thing as a user with no plan to fall back for.
+   */
+  plan: AccountPlan;
+
+  /** Aquiline spending. Written at creation, so the gate never reads a gap. */
+  aiCredits: AiCredits;
+
+  /**
    * The pending signup code, and when it lapses.
    *
    * Both are cleared the moment the code is accepted, so "has an otpExpiresAt"
@@ -120,6 +171,13 @@ export interface IUser extends Document {
   preferences: {
     /** Rail mode for the main navigation sidebar. */
     sidebarCollapsed: boolean;
+    /**
+     * Keyboard bindings, keyed by the shortcut ids the client knows about
+     * (app/lib/shortcuts.ts). Deliberately an open bag: the SERVER has no
+     * opinion on which shortcuts exist, so shipping a new one is a client
+     * release, not a migration. Anything absent means "still the default".
+     */
+    shortcuts?: Record<string, string>;
   };
 
   /** What the user picked in the status menu — a preference, not a fact. */
@@ -243,6 +301,62 @@ const UserSchema = new Schema<IUser>(
       default: null,
     },
 
+    // Billing tier. Indexed: "how many accounts are on each plan" and "find the
+    // paid ones" are the two questions this field exists to answer.
+    plan: {
+      type: String,
+      enum: ACCOUNT_PLANS,
+      default: "free",
+      index: true,
+    },
+
+    /**
+     * The AI ledger, written at creation by these defaults.
+     *
+     * `default: () => ({...})` on the parent, not a bare `{}`: the period has
+     * to start from the moment THIS account was made, so the dates come from a
+     * function evaluated per document. A shared literal would have frozen every
+     * account's period to whenever the server process booted.
+     */
+    aiCredits: {
+      type: new Schema(
+        {
+          used: { type: Number, default: 0, min: 0 },
+          // null, not 0 — 0 is a real allowance meaning "cannot spend", so the
+          // absence of an override has to be distinguishable from one set to
+          // nothing.
+          allowanceOverride: { type: Number, default: null },
+          periodStart: { type: Date, default: Date.now },
+          periodEnd: {
+            type: Date,
+            default: () => {
+              const end = new Date();
+              end.setMonth(end.getMonth() + 1);
+              return end;
+            },
+          },
+          lifetimeCredits: { type: Number, default: 0, min: 0 },
+          lastUsedAt: { type: Date, default: null },
+        },
+        { _id: false }
+      ),
+      default: () => {
+        const start = new Date();
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+
+        return {
+          used: 0,
+          allowanceOverride: null,
+          periodStart: start,
+          periodEnd: end,
+          lifetimeCredits: 0,
+          lastUsedAt: null,
+        };
+      },
+    },
+
+
     // `select: false` on both: a signup code is a short-lived credential and
     // has no business riding along on every user read (the roster, populated
     // `createdBy`, /auth/me). The two places that need it ask for it.
@@ -280,10 +394,13 @@ const UserSchema = new Schema<IUser>(
       type: new Schema(
         {
           sidebarCollapsed: { type: Boolean, default: false },
+          // Map, not a nested Schema: the keys are the client's shortcut ids
+          // and the whole point is that a new one needs no change here.
+          shortcuts: { type: Map, of: String, default: () => ({}) },
         },
         { _id: false }
       ),
-      default: () => ({ sidebarCollapsed: false }),
+      default: () => ({ sidebarCollapsed: false, shortcuts: {} }),
     },
 
     status: {

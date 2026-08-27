@@ -4,6 +4,7 @@ import WorkspaceMember, { MEMBER_ROLES, MemberRole } from "../models/WorkspaceMe
 import User, { UserStatus } from "../models/User";
 import { touchWorkspace } from "../utils/workspaceHelper";
 import { logActivity } from "../services/activity.service";
+import { emitChange, originOf } from "../services/realtime.service";
 import { effectiveStatus } from "../services/presence.service";
 import { paginationMeta, parsePagination } from "../utils/pagination";
 
@@ -197,6 +198,16 @@ export const addWorkspaceMember = async (
         // follow-up read — the members list is invalidated, not awaited.
         await member.populate("user", "firstName lastName email avatar");
 
+        emitChange({
+            entity: "member",
+            action: "created",
+            id: String(member._id),
+            workspaceId: String(workspaceId),
+            data: member,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         return res.status(201).json({
 
             message: "Member added successfully",
@@ -270,6 +281,15 @@ export const removeWorkspaceMember = async (
                 metadata: { memberUserId: String(userId) }
             });
         }
+
+        emitChange({
+            entity: "member",
+            action: "deleted",
+            id: String(userId),
+            workspaceId: String(workspaceId),
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
 
         return res.json({
 
@@ -399,6 +419,16 @@ export const updateWorkspaceMemberRole = async (
             after: role,
             message: `changed ${memberLabel} from ${previousRole} to ${role}`,
             metadata: { memberUserId: String(userId) }
+        });
+
+        emitChange({
+            entity: "member",
+            action: "updated",
+            id: String(member._id),
+            workspaceId: String(workspaceId),
+            data: member,
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         return res.json({ message: "Role updated", member });

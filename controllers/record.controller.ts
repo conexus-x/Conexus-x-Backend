@@ -11,6 +11,7 @@ import { seedSubColumns } from "../utils/subColumns";
 import { logActivity } from "../services/activity.service";
 import { runAutomations } from "../services/automation.service";
 import { emitIfChecklistFinished } from "../services/automation/emit";
+import { emitChange, originOf } from "../services/realtime.service";
 
 export const createRecord = async (req: AuthRequest, res: Response) => {
     try {
@@ -69,6 +70,18 @@ export const createRecord = async (req: AuthRequest, res: Response) => {
             record: record._id,
             collectionName: String(collectionId),
             user: req.user?.id as string
+        });
+
+        emitChange({
+            entity: "record",
+            action: "created",
+            id: String(record._id),
+            workspaceId: String(moduleItem.workspace),
+            moduleId: String(collection.module),
+            collectionId: String(collectionId),
+            data: record,
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         res.status(201).json({ message: "Record created successfully", record });
@@ -254,6 +267,21 @@ export const createSubRecord = async (req: AuthRequest, res: Response) => {
             after: record.name
         });
 
+        // parentRecordId is what makes this patchable: a sub-record lives in
+        // getSubRecords(parent), never in the collection's own list.
+        emitChange({
+            entity: "record",
+            action: "created",
+            id: String(record._id),
+            workspaceId: String(parent.workspace),
+            moduleId: String(parent.module),
+            collectionId: String(parent.collectionName),
+            parentRecordId: String(parent._id),
+            data: record,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.status(201).json({ message: "Sub-record created successfully", record });
     }
     catch (error: any) {
@@ -408,6 +436,31 @@ export const updateRecord = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        /**
+         * A move is announced as its own action and carries BOTH collection
+         * ids. The receiving client has to remove the row from one list and
+         * add it to the other, and it cannot work out where the row came from
+         * by looking at the new document — the old collection is only knowable
+         * here, exactly as the updateRecord invalidation already needs it.
+         */
+        emitChange({
+            entity: "record",
+            action: movedCollection ? "moved" : "updated",
+            id: String(record._id),
+            workspaceId: String(record.workspace),
+            moduleId: String(record.module),
+            collectionId: String(record.collectionName),
+            fromCollectionId: movedCollection
+                ? String(previous!.collectionName)
+                : undefined,
+            parentRecordId: record.parentRecord
+                ? String(record.parentRecord)
+                : undefined,
+            data: record,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.status(200).json({ message: "Record updated successfully", record });
 
     }
@@ -480,6 +533,20 @@ export const deleteRecord = async (req: AuthRequest, res: Response) => {
                 after: null
             });
         }
+
+        emitChange({
+            entity: "record",
+            action: "deleted",
+            id: String(record._id),
+            workspaceId: String(record.workspace),
+            moduleId: String(record.module),
+            collectionId: String(record.collectionName),
+            parentRecordId: record.parentRecord
+                ? String(record.parentRecord)
+                : undefined,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
 
         res.status(200).json({
             message: "Record archived successfully",

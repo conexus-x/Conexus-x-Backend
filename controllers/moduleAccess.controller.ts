@@ -7,6 +7,7 @@ import ModuleMember from "../models/ModuleMember";
 import WorkspaceMember from "../models/WorkspaceMember";
 import { touchWorkspace } from "../utils/workspaceHelper";
 import { logActivity } from "../services/activity.service";
+import { emitChange, originOf } from "../services/realtime.service";
 import {
     ModuleVisibility,
     decideModuleAccess,
@@ -243,6 +244,17 @@ export const setMemberModuleAccess = async (req: AuthRequest, res: Response) => 
                 added: toAdd,
                 removed: toRemove
             }
+        });
+
+        // Granting someone a board changes THEIR module list, so this also has
+        // to reach a person who is not looking at the members page at all.
+        emitChange({
+            entity: "moduleAccess",
+            action: "updated",
+            id: `${workspaceId}:${userId}`,
+            workspaceId: String(workspaceId),
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         return res.json({

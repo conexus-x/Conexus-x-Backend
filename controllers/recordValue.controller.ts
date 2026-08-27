@@ -7,6 +7,7 @@ import RecordValue from "../models/RecordValue";
 import { touchModule, touchWorkspace } from "../utils/workspaceHelper";
 import { describeValue, logActivity } from "../services/activity.service";
 import { emitColumnChange } from "../services/automation/emit";
+import { emitChange, originOf } from "../services/realtime.service";
 
 export const createRecordValue = async (req: AuthRequest, res: Response) => {
     try {
@@ -54,6 +55,20 @@ export const createRecordValue = async (req: AuthRequest, res: Response) => {
                 before,
                 after: value,
                 message: `updated a cell`
+            });
+
+            emitChange({
+                entity: "recordValue",
+                action: "updated",
+                id: String(exists._id),
+                workspaceId: String(exists.workspace),
+                moduleId: String(exists.module),
+                collectionId: String(exists.collectionName),
+                recordId: String(exists.record),
+                columnId: String(exists.column),
+                data: exists,
+                actorId: req.user?.id,
+                originId: originOf(req)
             });
 
             return res.status(200).json({
@@ -110,6 +125,20 @@ export const createRecordValue = async (req: AuthRequest, res: Response) => {
             workspace, module: moduleId, record, column,
             user: req.user?.id as string,
             before: null, after: value
+        });
+
+        emitChange({
+            entity: "recordValue",
+            action: "created",
+            id: String(recordValue._id),
+            workspaceId: String(workspace),
+            moduleId: String(moduleId),
+            collectionId: String(collectionName),
+            recordId: String(record),
+            columnId: String(column),
+            data: recordValue,
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         res.status(201).json({
@@ -250,6 +279,20 @@ export const updateRecordValue = async (req: AuthRequest, res: Response) => {
 
         void emitColumnChange(trigger);
 
+        emitChange({
+            entity: "recordValue",
+            action: "updated",
+            id: String(recordValue._id),
+            workspaceId: String(recordValue.workspace),
+            moduleId: String(recordValue.module),
+            collectionId: String(recordValue.collectionName),
+            recordId: String(recordValue.record),
+            columnId: String(recordValue.column),
+            data: recordValue,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.status(200).json({
 
             message: "Value updated successfully",
@@ -307,6 +350,19 @@ export const deleteRecordValue = async (req: AuthRequest, res: Response) => {
             before: recordValue.value,
             after: null,
             message: `cleared ${describeValue(recordValue.value)}`
+        });
+
+        emitChange({
+            entity: "recordValue",
+            action: "deleted",
+            id: String(recordValue._id),
+            workspaceId: String(recordValue.workspace),
+            moduleId: String(recordValue.module),
+            collectionId: String(recordValue.collectionName),
+            recordId: String(recordValue.record),
+            columnId: String(recordValue.column),
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         res.status(200).json({

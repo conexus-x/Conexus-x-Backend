@@ -13,6 +13,7 @@ import { isWorkspaceManager } from "../services/access.service";
 import { touchWorkspace } from "../utils/workspaceHelper";
 import { logActivity } from "../services/activity.service";
 import { runAutomations } from "../services/automation.service";
+import { emitChange, originOf } from "../services/realtime.service";
 
 /**
  * Amendments: the conversation hanging off a single record.
@@ -156,6 +157,22 @@ export const createAmendment = async (req: ModuleAccessRequest, res: Response) =
             });
         }
 
+        emitChange({
+            entity: "amendment",
+            action: "created",
+            id: String(amendment._id),
+            workspaceId: String(record.workspace),
+            moduleId: String(record.module),
+            collectionId: String(record.collectionName),
+            recordId: String(record._id),
+            parentRecordId: record.parentRecord
+                ? String(record.parentRecord)
+                : undefined,
+            data: amendment,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.status(201).json({ message: "Amendment posted successfully", amendment });
     } catch (error: any) {
         res.status(500).json({ message: error.message });
@@ -194,6 +211,18 @@ export const updateAmendment = async (req: ModuleAccessRequest, res: Response) =
         }
 
         await amendment.populate("user", AUTHOR_FIELDS);
+
+        emitChange({
+            entity: "amendment",
+            action: "updated",
+            id: String(amendment._id),
+            workspaceId: String(amendment.workspace),
+            moduleId: String(amendment.module),
+            recordId: String(amendment.record),
+            data: amendment,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
 
         res.status(200).json({ message: "Amendment saved successfully", amendment });
     } catch (error: any) {
@@ -236,7 +265,7 @@ export const deleteAmendment = async (req: ModuleAccessRequest, res: Response) =
          * "This amendment was deleted."
          */
 
-        const record = await Record.findById(amendment.record).select("name collectionName");
+        const record = await Record.findById(amendment.record).select("name collectionName parentRecord");
 
         await touchWorkspace(amendment.workspace);
 
@@ -251,6 +280,23 @@ export const deleteAmendment = async (req: ModuleAccessRequest, res: Response) =
             before: amendment.message,
             after: null,
             message: `deleted an amendment on "${record?.name ?? "a record"}"`
+        });
+
+        emitChange({
+            entity: "amendment",
+            action: "deleted",
+            id: String(amendment._id),
+            workspaceId: String(amendment.workspace),
+            moduleId: String(amendment.module),
+            collectionId: record?.collectionName
+                ? String(record.collectionName)
+                : undefined,
+            recordId: String(amendment.record),
+            parentRecordId: record?.parentRecord
+                ? String(record.parentRecord)
+                : undefined,
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         res.status(200).json({ message: "Amendment deleted successfully" });

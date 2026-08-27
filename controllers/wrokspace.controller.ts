@@ -12,6 +12,7 @@ import Comment from "../models/Comment";
 import File from "../models/File";
 import Notification from "../models/Notification";
 import { touchWorkspace } from "../utils/workspaceHelper";
+import { emitChange, originOf } from "../services/realtime.service";
 
 // Extend Request type to include user information from auth middleware
 export interface AuthRequest extends Request {
@@ -186,6 +187,16 @@ export const updateWorkspace = async (req: Request, res: Response) => {
             await touchWorkspace(workspace._id);
         }
 
+        emitChange({
+            entity: "workspace",
+            action: "updated",
+            id: String(req.params.id),
+            workspaceId: String(req.params.id),
+            data: workspace,
+            actorId: (req as AuthRequest).user?.id,
+            originId: originOf(req)
+        });
+
         return res.json({
             message: "Workspace updated",
             workspace
@@ -230,6 +241,15 @@ export const deleteWorkspace = async (req: Request, res: Response) => {
 
                 await session.commitTransaction();
                 session.endSession();
+                emitChange({
+                    entity: "workspace",
+                    action: "deleted",
+                    id: String(workspaceId),
+                    workspaceId: String(workspaceId),
+                    actorId: (req as AuthRequest).user?.id,
+                    originId: originOf(req)
+                });
+
                 return res.json({ message: "Workspace and related data deleted" });
             } catch (innerErr) {
                 await session.abortTransaction();

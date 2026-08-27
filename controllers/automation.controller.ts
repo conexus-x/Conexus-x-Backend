@@ -7,6 +7,7 @@ import Module from "../models/Module";
 import WorkspaceMember from "../models/WorkspaceMember";
 import { touchWorkspace } from "../utils/workspaceHelper";
 import { sanitiseRecipe, validateRecipe } from "../services/automation/recipe";
+import { emitChange, originOf } from "../services/realtime.service";
 
 /**
  * Automation CRUD.
@@ -115,6 +116,17 @@ export const createAutomation = async (req: AuthRequest, res: Response) => {
 
         await touchWorkspace(moduleItem.workspace);
 
+        emitChange({
+            entity: "automation",
+            action: "created",
+            id: String(automation._id),
+            workspaceId: String(moduleItem.workspace),
+            moduleId: String(moduleItem._id),
+            data: automation,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.status(201).json({ message: "Automation created", automation });
 
     } catch (error: any) {
@@ -196,6 +208,16 @@ export const createWorkspaceAutomation = async (req: AuthRequest, res: Response)
 
         await touchWorkspace(workspaceId);
 
+        emitChange({
+            entity: "automation",
+            action: "created",
+            id: String(automation._id),
+            workspaceId: String(workspaceId),
+            data: automation,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.status(201).json({ message: "Automation created", automation });
 
     } catch (error: any) {
@@ -248,6 +270,17 @@ export const updateAutomation = async (req: AuthRequest, res: Response) => {
         await existing.save();
         await touchWorkspace(existing.workspace);
 
+        emitChange({
+            entity: "automation",
+            action: "updated",
+            id: String(existing._id),
+            workspaceId: String(existing.workspace),
+            moduleId: existing.module ? String(existing.module) : undefined,
+            data: existing,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.json({ message: "Automation updated", automation: existing });
 
     } catch (error: any) {
@@ -269,6 +302,16 @@ export const deleteAutomation = async (req: AuthRequest, res: Response) => {
 
         await Automation.deleteOne({ _id: automationId });
         await touchWorkspace(existing.workspace);
+
+        emitChange({
+            entity: "automation",
+            action: "deleted",
+            id: String(existing._id),
+            workspaceId: String(existing.workspace),
+            moduleId: existing.module ? String(existing.module) : undefined,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
 
         res.json({ message: "Automation deleted" });
 

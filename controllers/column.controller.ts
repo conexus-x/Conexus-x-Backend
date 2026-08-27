@@ -6,6 +6,7 @@ import Column from "../models/Column";
 import Module from "../models/Module";
 import { touchModule, touchWorkspace } from "../utils/workspaceHelper";
 import { logActivity } from "../services/activity.service";
+import { emitChange, originOf } from "../services/realtime.service";
 
 /**
  * Columns for one grid of a module.
@@ -57,6 +58,19 @@ export const createColumn = async(req:AuthRequest,res:Response)=>{
                 message: `added ${type || "text"} ${column.scope === "subrecord" ? "sub-record " : ""}column "${column.name}"`
             });
         }
+        emitChange({
+            entity: "column",
+            action: "created",
+            id: String(column._id),
+            workspaceId: moduleItem ? String(moduleItem.workspace) : undefined,
+            moduleId: String(moduleId),
+            columnId: String(column._id),
+            scope: column.scope,
+            data: column,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.status(201).json({
             message:"Column created successfully",column
         });
@@ -165,6 +179,19 @@ export const updateColumn = async(req:AuthRequest,res:Response)=>{
         }
 
 
+        emitChange({
+            entity: "column",
+            action: "updated",
+            id: String(column._id),
+            workspaceId: moduleItem ? String(moduleItem.workspace) : undefined,
+            moduleId: String(column.module),
+            columnId: String(column._id),
+            scope: column.scope,
+            data: column,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.status(200).json({
 
             message:"Column updated successfully",
@@ -224,6 +251,18 @@ export const deleteColumn = async(req:AuthRequest,res:Response)=>{
             });
         }
 
+
+        emitChange({
+            entity: "column",
+            action: "deleted",
+            id: String(column._id),
+            workspaceId: moduleItem ? String(moduleItem.workspace) : undefined,
+            moduleId: String(column.module),
+            columnId: String(column._id),
+            scope: column.scope,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
 
         res.status(200).json({
 

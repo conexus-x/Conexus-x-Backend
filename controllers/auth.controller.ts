@@ -15,6 +15,7 @@ import {
 } from "../services/google.service";
 import { isCloudinaryConfigured, uploadAvatar } from "../services/cloudinary.service";
 import { effectiveStatus, isUserStatus } from "../services/presence.service";
+import { announcePresence } from "../services/realtime.service";
 import { AuthRequest } from "../middleware/auth.middleware";
 import env from "../config/env";
 
@@ -573,7 +574,11 @@ export const me = async (req: AuthRequest, res: Response) => {
                 // Rides along on the call the client already makes on arrival,
                 // so a fresh browser lays the sidebar out correctly on the
                 // first paint after sign-in rather than a beat later.
-                preferences: user.preferences
+                preferences: user.preferences,
+                // Same reasoning: the plan decides what the app offers, so it
+                // must be known before the first render rather than fetched
+                // once something has already been drawn wrongly.
+                plan: user.plan ?? "free"
             }
         });
 
@@ -612,6 +617,11 @@ export const updateStatus = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        // A picked status is the one presence change no socket lifecycle sees,
+        // so it is announced explicitly. Everyone else's dot moves at once
+        // instead of on their next members refetch.
+        void announcePresence(String(req.user?.id));
+
         res.json({
             message: "Status updated",
             status: user.status,
@@ -642,12 +652,52 @@ export const updatePreferences = async (req: AuthRequest, res: Response) => {
 
     try {
 
-        const { sidebarCollapsed } = req.body;
+        const { sidebarCollapsed, shortcuts } = req.body;
 
-        const patch: Record<string, boolean> = {};
+        const patch: Record<string, unknown> = {};
 
         if (typeof sidebarCollapsed === "boolean") {
             patch["preferences.sidebarCollapsed"] = sidebarCollapsed;
+        }
+
+        /**
+         * Keyboard bindings arrive as a whole map and REPLACE the stored one,
+         * because "reset this shortcut to its default" is expressed by the key
+         * being absent — a per-key merge would make a reset impossible to say.
+         *
+         * The server does not know which shortcut ids exist (that ships with
+         * the client), so it validates SHAPE only: string keys, string values,
+         * both bounded. That is enough to stop the settings bag being used as
+         * arbitrary storage without pinning the API to today's shortcut list.
+         */
+        if (shortcuts !== undefined) {
+            if (
+                typeof shortcuts !== "object" ||
+                shortcuts === null ||
+                Array.isArray(shortcuts)
+            ) {
+                return res.status(400).json({ message: "shortcuts must be an object" });
+            }
+
+            const entries = Object.entries(shortcuts as Record<string, unknown>);
+
+            if (entries.length > 50) {
+                return res.status(400).json({ message: "Too many shortcuts" });
+            }
+
+            const clean: Record<string, string> = {};
+
+            for (const [key, value] of entries) {
+                if (typeof value !== "string") {
+                    return res.status(400).json({ message: `Shortcut "${key}" must be a string` });
+                }
+                if (key.length > 64 || value.length > 64) {
+                    return res.status(400).json({ message: `Shortcut "${key}" is too long` });
+                }
+                if (value.trim()) clean[key] = value.trim().toLowerCase();
+            }
+
+            patch["preferences.shortcuts"] = clean;
         }
 
         if (Object.keys(patch).length === 0) {

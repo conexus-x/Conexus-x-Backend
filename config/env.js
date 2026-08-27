@@ -79,6 +79,22 @@ const env = {
 
     /** Tool-call rounds per message — the real cost ceiling for one request. */
     anthropic_max_steps: Number(process.env.ANTHROPIC_MAX_STEPS ?? 4),
+
+    /**
+     * Aquiline credit allowances per plan, per month. 1 credit = $0.0001, so
+     * these read as: free $0.05, paid $1.00, enterprise $5.00.
+     *
+     * Here rather than on each user document so the free tier can be retuned
+     * against the real bill with a restart instead of a migration over every
+     * free row. See services/aiCredits.service.ts for why the ledger is
+     * denominated in money rather than in messages.
+     *
+     * Sized against a $5 total budget: a typical Haiku turn is 30-40 credits,
+     * which puts free at roughly 14 turns a month and paid at roughly 280.
+     */
+    ai_credits_free: Number(process.env.AI_CREDITS_FREE ?? 500),
+    ai_credits_paid: Number(process.env.AI_CREDITS_PAID ?? 10000),
+    ai_credits_enterprise: Number(process.env.AI_CREDITS_ENTERPRISE ?? 50000),
 }
 
 module.exports = env;

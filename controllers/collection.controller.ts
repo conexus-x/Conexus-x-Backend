@@ -6,6 +6,7 @@ import Collection from "../models/Collection";
 import Module from "../models/Module";
 import { touchModule, touchWorkspace } from "../utils/workspaceHelper";
 import { logActivity } from "../services/activity.service";
+import { emitChange, originOf } from "../services/realtime.service";
 
 
 export const createCollection = async(req:AuthRequest,res:Response)=>{
@@ -44,6 +45,18 @@ export const createCollection = async(req:AuthRequest,res:Response)=>{
             });
         }
 
+
+        emitChange({
+            entity: "collection",
+            action: "created",
+            id: String(collection._id),
+            workspaceId: moduleItem ? String(moduleItem.workspace) : undefined,
+            moduleId: String(collection.module),
+            collectionId: String(collection._id),
+            data: collection,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
 
         res.status(201).json({
 
@@ -182,6 +195,18 @@ export const updateCollection = async(req:AuthRequest,res:Response)=>{
         }
 
 
+        emitChange({
+            entity: "collection",
+            action: "updated",
+            id: String(collection._id),
+            workspaceId: moduleItem ? String(moduleItem.workspace) : undefined,
+            moduleId: String(collection.module),
+            collectionId: String(collection._id),
+            data: collection,
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
+
         res.json({
 
             message:"Collection updated successfully",
@@ -243,6 +268,17 @@ export const deleteCollection = async(req:AuthRequest,res:Response)=>{
             });
         }
 
+
+        emitChange({
+            entity: "collection",
+            action: "deleted",
+            id: String(collection._id),
+            workspaceId: moduleItem ? String(moduleItem.workspace) : undefined,
+            moduleId: String(collection.module),
+            collectionId: String(collection._id),
+            actorId: req.user?.id,
+            originId: originOf(req)
+        });
 
         res.json({
 

@@ -7,6 +7,7 @@ import Module from "../models/Module";
 import Record from "../models/Record";
 import { touchWorkspace } from "../utils/workspaceHelper";
 import { logActivity } from "../services/activity.service";
+import { emitChange, originOf } from "../services/realtime.service";
 import { effectiveStatus } from "../services/presence.service";
 import type { UserStatus } from "../models/User";
 
@@ -98,6 +99,17 @@ export const createModule = async (
             targetName: moduleItem.name,
             after: moduleItem.name,
             message: `created module "${moduleItem.name}"`
+        });
+
+        emitChange({
+            entity: "module",
+            action: "created",
+            id: String(moduleItem._id),
+            workspaceId: String(moduleItem.workspace),
+            moduleId: String(moduleItem._id),
+            data: moduleItem,
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         res.status(201).json({
@@ -372,9 +384,15 @@ export const updateModule = async (req: AuthRequest, res: Response) => {
         }
 
         // Captured before the write so the audit row can show the change.
+        // Everything the row might need to NAME is snapshotted, not just the
+        // name — see the message builder below for why.
         const before = {
             name: moduleItem.name,
-            visibility: moduleItem.visibility
+            visibility: moduleItem.visibility,
+            description: moduleItem.description ?? "",
+            tags: (moduleItem.tags ?? []).map((t: any) =>
+                typeof t === "string" ? t : t?.label
+            ).filter(Boolean) as string[]
         };
 
         if (typeof name === "string" && name.trim()) moduleItem.name = name.trim();
@@ -389,8 +407,84 @@ export const updateModule = async (req: AuthRequest, res: Response) => {
 
         await touchWorkspace(moduleItem.workspace);
 
-        const changedVisibility =
-            visibility !== undefined && visibility !== before.visibility;
+        /**
+         * SAY WHAT CHANGED, not that something did.
+         *
+         * This used to log `updated board "<name>"` with before/after both set
+         * to the module's NAME — so adding a tag produced a row reading
+         * "updated board Product" above a Product -> Product pair. Both halves
+         * were useless: the sentence named the field that had NOT changed, and
+         * the chips showed one value twice, which reads like a bug.
+         *
+         * Each field is compared against the snapshot and the FIRST real change
+         * names the row, with before/after carrying that field's two values.
+         * Where several changed at once the sentence lists them and the chips
+         * are left off — two values cannot describe three fields, and an
+         * arbitrary one of them would be a lie by omission.
+         */
+        const afterTags = (moduleItem.tags ?? []).map((t: any) =>
+            typeof t === "string" ? t : t?.label
+        ).filter(Boolean) as string[];
+
+        const tagsAdded = afterTags.filter((t) => !before.tags.includes(t));
+        const tagsRemoved = before.tags.filter((t) => !afterTags.includes(t));
+
+        const quoted = (list: string[]) => list.map((t) => `"${t}"`).join(", ");
+
+        const changes: { field: string; message: string; before?: string; after?: string }[] = [];
+
+        if (moduleItem.name !== before.name) {
+            changes.push({
+                field: "name",
+                message: `renamed module "${before.name}" to "${moduleItem.name}"`,
+                before: before.name,
+                after: moduleItem.name
+            });
+        }
+
+        if (visibility !== undefined && moduleItem.visibility !== before.visibility) {
+            changes.push({
+                field: "visibility",
+                message: `made "${moduleItem.name}" ${moduleItem.visibility === "private" ? "private" : `visible to the ${moduleItem.visibility}`}`,
+                before: before.visibility,
+                after: moduleItem.visibility
+            });
+        }
+
+        if (tagsAdded.length || tagsRemoved.length) {
+            const parts: string[] = [];
+            if (tagsAdded.length) {
+                parts.push(`added ${tagsAdded.length === 1 ? "tag" : "tags"} ${quoted(tagsAdded)}`);
+            }
+            if (tagsRemoved.length) {
+                parts.push(`removed ${tagsRemoved.length === 1 ? "tag" : "tags"} ${quoted(tagsRemoved)}`);
+            }
+
+            changes.push({
+                field: "tags",
+                message: `${parts.join(" and ")} on "${moduleItem.name}"`,
+                // The whole tag SET on each side: a tag list is only readable
+                // against what it was, and "client, urgent" -> "client" says
+                // more than the single label that moved.
+                before: before.tags.join(", "),
+                after: afterTags.join(", ")
+            });
+        }
+
+        if ((moduleItem.description ?? "") !== before.description) {
+            changes.push({
+                field: "description",
+                message: before.description
+                    ? `updated the description of "${moduleItem.name}"`
+                    : `added a description to "${moduleItem.name}"`,
+                before: before.description,
+                after: moduleItem.description ?? ""
+            });
+        }
+
+        // Nothing worth a row: an icon or colour edit still logs, but it has no
+        // pair to show and no field name worth putting in the sentence.
+        const single = changes.length === 1 ? changes[0] : null;
 
         await logActivity({
             workspace: moduleItem.workspace,
@@ -398,11 +492,24 @@ export const updateModule = async (req: AuthRequest, res: Response) => {
             module: moduleItem._id,
             action: "module_updated",
             targetName: moduleItem.name,
-            before: changedVisibility ? before.visibility : before.name,
-            after: changedVisibility ? moduleItem.visibility : moduleItem.name,
-            message: changedVisibility
-                ? `made "${moduleItem.name}" ${moduleItem.visibility === "private" ? "private" : `visible to the ${moduleItem.visibility}`}`
-                : `updated board "${moduleItem.name}"`
+            before: single?.before,
+            after: single?.after,
+            message: single
+                ? single.message
+                : changes.length > 1
+                    ? `updated ${changes.map((c) => c.field).join(", ")} on "${moduleItem.name}"`
+                    : `updated "${moduleItem.name}"`
+        });
+
+        emitChange({
+            entity: "module",
+            action: "updated",
+            id: String(moduleItem._id),
+            workspaceId: String(moduleItem.workspace),
+            moduleId: String(moduleItem._id),
+            data: moduleItem,
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         return res.json({ message: "Module updated", module: moduleItem });
@@ -434,6 +541,16 @@ export const deleteModule = async (req: AuthRequest, res: Response) => {
             before: moduleItem.name,
             after: null,
             message: `deleted module "${moduleItem.name}"`
+        });
+
+        emitChange({
+            entity: "module",
+            action: "deleted",
+            id: String(moduleItem._id),
+            workspaceId: String(moduleItem.workspace),
+            moduleId: String(moduleItem._id),
+            actorId: req.user?.id,
+            originId: originOf(req)
         });
 
         res.json({ message: "Module deleted successfully" });

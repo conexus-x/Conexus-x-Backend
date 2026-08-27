@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Activity, { type ActivityAction } from "../models/Activity";
+import { emitChange } from "./realtime.service";
 
 /**
  * Writes the audit trail. Every mutation controller calls logActivity() after
@@ -59,7 +60,7 @@ export async function logActivity(input: LogActivityInput): Promise<void> {
     if (!workspace || !user) return;
 
     try {
-        await Activity.create({
+        const row = await Activity.create({
             workspace,
             user,
             action: input.action,
@@ -72,6 +73,30 @@ export async function logActivity(input: LogActivityInput): Promise<void> {
             before: trim(input.before),
             after: trim(input.after),
             metadata: input.metadata ?? {}
+        });
+
+        /**
+         * The feed goes realtime from HERE rather than from twenty controllers.
+         * Every mutation already funnels through this function, so one emit
+         * covers the whole audit trail and a controller added tomorrow is live
+         * without anyone remembering to wire it.
+         *
+         * NO originId, deliberately: unlike a cell edit, the actor's client
+         * never wrote this row optimistically — the server invented it — so the
+         * person who caused it needs the echo as much as everybody else. This
+         * is also what retires the 10s automation-runs poll: an automated
+         * change is an activity row stamped metadata.automation, and it now
+         * arrives instead of being discovered.
+         */
+        emitChange({
+            entity: "activity",
+            action: "created",
+            id: String(row._id),
+            workspaceId: String(workspace),
+            moduleId: input.module ? String(input.module) : undefined,
+            recordId: input.record ? String(input.record) : undefined,
+            actorId: String(user),
+            data: row
         });
     } catch (error) {
         console.error("Activity log failed:", (error as Error).message);
