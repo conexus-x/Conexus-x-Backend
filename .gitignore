@@ -1,3 +1,7 @@
 .env 
 ./node_modules
 /node_modules
+# Compiled output from `npm run build`. Built on the host at deploy time,
+# never committed — a stale dist/ silently overriding fresh source is a
+# genuinely miserable bug to chase.
+dist/
