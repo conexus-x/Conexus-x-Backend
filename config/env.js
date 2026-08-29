@@ -8,9 +8,23 @@ const env = {
     port,
     mongo_url: process.env.MONGO_URI,
     jwt_secret: process.env.JWT_SECRET,
-    client_url: process.env.CLIENT_URL || "http://localhost:3000",
+    /**
+     * The FRONTEND origin — where the browser is sent after Google signs
+     * someone in (`${site_url}/auth/callback#token=...`). Named SITE_URL to
+     * match the frontend's own NEXT_PUBLIC_SITE_URL.
+     *
+     * The localhost fallback keeps a fresh clone working with no setup. It is
+     * ONLY a dev convenience: on a deployment SITE_URL must be set, or this
+     * falls through and sends real users to a localhost that is not running.
+     */
+    site_url: process.env.SITE_URL,
     google_client_id: process.env.GOOGLE_CLIENT_ID,
     google_client_secret: process.env.GOOGLE_CLIENT_SECRET,
+    /**
+     * Where GOOGLE returns the browser. Must match a URI registered on the
+     * OAuth client byte-for-byte. Same rule as site_url: the localhost fallback
+     * is a dev convenience, and a deployment must set it explicitly.
+     */
     google_redirect_uri:
         process.env.GOOGLE_REDIRECT_URI ||
         `http://localhost:${port}/api/auth/google/callback`,

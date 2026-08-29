@@ -220,7 +220,7 @@ export const googleAuth = (req: Request, res: Response) => {
 
     if (!isGoogleConfigured()) {
         return res.redirect(
-            `${env.client_url}/auth/callback#error=${GOOGLE_ERRORS.not_configured}`
+            `${env.site_url}/auth/callback#error=${GOOGLE_ERRORS.not_configured}`
         );
     }
 
@@ -257,7 +257,7 @@ const mirrorGooglePicture = async (
 export const googleCallback = async (req: Request, res: Response) => {
 
     const fail = (reason: string) =>
-        res.redirect(`${env.client_url}/auth/callback#error=${encodeURIComponent(reason)}`);
+        res.redirect(`${env.site_url}/auth/callback#error=${encodeURIComponent(reason)}`);
 
     try {
 
@@ -352,7 +352,7 @@ export const googleCallback = async (req: Request, res: Response) => {
 
         // Fragment, not query string: the token never reaches a server log or referrer header
         return res.redirect(
-            `${env.client_url}/auth/callback#token=${encodeURIComponent(token)}`
+            `${env.site_url}/auth/callback#token=${encodeURIComponent(token)}`
         );
 
 

@@ -48,10 +48,28 @@ export const verifyOAuthState = (state: unknown): OAuthMode => {
     return decoded.mode === "register" ? "register" : "login";
 };
 
+/**
+ * The redirect URI, ALWAYS a string.
+ *
+ * config/env.js is plain JavaScript, so TypeScript infers every
+ * `process.env.X` read as `string | undefined`. URLSearchParams only accepts
+ * Record<string, string>, so the moment that file loses an `||` fallback the
+ * whole backend stops compiling — which has now happened three times.
+ *
+ * Coercing HERE, at the point of use, ends that: this file compiles and runs
+ * whether or not env.js carries a default, so editing the config can no longer
+ * break the build. The fallback is also repeated here so an unset variable
+ * still produces a working local URL rather than an empty one.
+ */
+const redirectUri = (): string =>
+    String(
+        env.google_redirect_uri
+    );
+
 export const buildGoogleAuthUrl = (state: string): string => {
     const params = new URLSearchParams({
         client_id: clientId(),
-        redirect_uri: env.google_redirect_uri,
+        redirect_uri: redirectUri(),
         response_type: "code",
         scope: "openid email profile",
         access_type: "offline",
@@ -73,7 +91,7 @@ export const exchangeCodeForTokens = async (
             code,
             client_id: clientId(),
             client_secret: clientSecret(),
-            redirect_uri: env.google_redirect_uri,
+            redirect_uri: redirectUri(),
             grant_type: "authorization_code"
         })
     });
